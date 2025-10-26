@@ -8,12 +8,30 @@ import { feedbackService } from '@/lib/firebase/services';
 
 export default function HRDashboardPage() {
   const { user } = useAuth();
-  const [feedbackList, setFeedbackList] = useState<
-    { id: string; name: string; message: string; createdAt?: any }[]
-  >([]);
+
+  type Feedback = {
+    id: string;
+    employeeName?: string;
+    notes?: string;
+    createdAt?: Date | { toDate: () => Date } | null;
+  };
+
+  const isTimestamp = (val: unknown): val is { toDate: () => Date } =>
+    typeof val === 'object' && val !== null && typeof (val as { toDate?: unknown }).toDate === 'function';
+
+  const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
 
   useEffect(() => {
-    const unsubscribe = feedbackService.subscribeFeedback(setFeedbackList);
+    const unsubscribe = feedbackService.subscribeFeedback((list) =>
+      setFeedbackList(
+        list.map(({ id, employeeName, notes, createdAt }) => ({
+          id,
+          employeeName,
+          notes,
+          createdAt,
+        }))
+      )
+    );
     return () => unsubscribe();
   }, []);
 
@@ -97,8 +115,12 @@ export default function HRDashboardPage() {
                       <p className="text-sm text-gray-500">{fb.notes}</p>
                     </div>
                     <span className="text-xs text-gray-500">
-                      {fb.createdAt?.toDate
-                        ? fb.createdAt.toDate().toLocaleDateString()
+                     {fb.createdAt
+                        ? fb.createdAt instanceof Date
+                          ? fb.createdAt.toLocaleDateString()
+                          : isTimestamp(fb.createdAt)
+                          ? fb.createdAt.toDate().toLocaleDateString()
+                          : 'Just now'
                         : 'Just now'}
                     </span>
                   </div>

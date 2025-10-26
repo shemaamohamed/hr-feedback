@@ -63,13 +63,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
               <MessageSquare className="h-5 w-5" />
               <span>My Feedback</span>
             </Link>
-            <Link
-              href="/employee/profile"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-            >
-              <User className="h-5 w-5" />
-              <span>Profile</span>
-            </Link>
+            
           </nav>
 
           {/* User Info & Logout */}

@@ -18,12 +18,17 @@ export default function EmployeeFeedbackPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.uid || !user?.name) {
+      setToast('You must be signed in to submit feedback');
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
     setIsLoading(true);
     try {
       // In a real app, employeeId/name would come from current user context
       await feedbackService.submitFeedback({
-        employeeId: user?.uid,
-        employeeName: user?.name,
+        employeeId: user.uid,
+        employeeName: user.name,
         notes,
         score,
       });

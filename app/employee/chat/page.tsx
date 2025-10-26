@@ -36,7 +36,7 @@ export default function EmployeeChatPage() {
     try {
       await chatService.sendMessage(activeConvId, {
         senderId: user.uid,
-        senderName: user.email || user.uid,
+        senderName: user.name || user.uid,
         message: text.trim(),
         isRead: false,
       });
@@ -74,7 +74,7 @@ export default function EmployeeChatPage() {
         <div className="col-span-2">
           <Card className="flex flex-col h-[70vh]">
             <CardHeader>
-              <CardTitle>Chat</CardTitle>
+              <CardTitle>Chat With {}</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto">
               {!activeConvId && <div className="text-sm text-gray-500">Select a conversation</div>}
