@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Notifications from '@/components/Notifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { MessageSquare, CheckCircle, Clock, Award, FileText, User } from 'lucide-react';
 
@@ -101,7 +102,15 @@ export default function EmployeeDashboardPage() {
             </div>
           </CardContent>
         </Card>
-
+        <Card>
+          <CardHeader>
+            <CardTitle>Notifications</CardTitle>
+            <CardDescription>Recent items</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Notifications />
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>Recent Feedback Received</CardTitle>

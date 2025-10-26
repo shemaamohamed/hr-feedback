@@ -1,11 +1,21 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { Users, FileText, TrendingUp, Clock } from 'lucide-react';
+import { feedbackService } from '@/lib/firebase/services';
 
 export default function HRDashboardPage() {
   const { user } = useAuth();
+  const [feedbackList, setFeedbackList] = useState<
+    { id: string; name: string; message: string; createdAt?: any }[]
+  >([]);
+
+  useEffect(() => {
+    const unsubscribe = feedbackService.subscribeFeedback(setFeedbackList);
+    return () => unsubscribe();
+  }, []);
 
   const stats = [
     {
@@ -18,8 +28,8 @@ export default function HRDashboardPage() {
     },
     {
       title: 'Pending Feedback',
-      value: '23',
-      change: '8 urgent',
+      value: feedbackList.length.toString(),
+      change: 'Total received',
       icon: FileText,
       color: 'text-orange-600',
       bgColor: 'bg-orange-100',
@@ -79,15 +89,23 @@ export default function HRDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between border-b pb-3 last:border-0">
-                  <div>
-                    <p className="font-medium">Employee {i}</p>
-                    <p className="text-sm text-gray-500">Performance Review</p>
+              {feedbackList.length > 0 ? (
+                feedbackList.slice(0, 5).map((fb) => (
+                  <div key={fb.id} className="flex items-center justify-between border-b pb-3 last:border-0">
+                    <div>
+                      <p className="font-medium">{fb.employeeName || 'Anonymous'}</p>
+                      <p className="text-sm text-gray-500">{fb.notes}</p>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {fb.createdAt?.toDate
+                        ? fb.createdAt.toDate().toLocaleDateString()
+                        : 'Just now'}
+                    </span>
                   </div>
-                  <span className="text-xs text-gray-500">{i}h ago</span>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No feedback yet.</p>
+              )}
             </div>
           </CardContent>
         </Card>

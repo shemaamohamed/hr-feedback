@@ -117,23 +117,9 @@ export default function LoginPage() {
               )}
             </Button>
             
-            <div className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{' '}
-              <Link 
-                href="/register" 
-                className="font-medium text-primary hover:underline"
-              >
-                Sign up
-              </Link>
-            </div>
+           
             
-            <div className="text-center text-xs text-muted-foreground">
-              <div className="mb-2">Demo Accounts:</div>
-              <div className="space-y-1">
-                <div>HR: hr@demo.com / demo123456</div>
-                <div>Employee: employee@demo.com / demo123456</div>
-              </div>
-            </div>
+          
           </CardFooter>
         </form>
       </Card>
