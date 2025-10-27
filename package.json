@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
+    "antd": "^5.27.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.4.0",
@@ -28,6 +29,7 @@
     "next": "^14.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-icons": "^5.5.0",
     "tailwind-merge": "^3.3.1",
     "xlsx": "^0.18.5"
   },

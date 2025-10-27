@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2, Home, MessageSquare, User, LogOut } from 'lucide-react';
+import { Loader2, Home, MessageSquare,LogOut } from 'lucide-react';
 import Link from 'next/link';
 
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
@@ -57,11 +57,11 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
               <span>Home</span>
             </Link>
             <Link
-              href="/employee/feedback"
+              href="/employee/chat"
               className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
             >
               <MessageSquare className="h-5 w-5" />
-              <span>My Feedback</span>
+              <span>My Chat</span>
             </Link>
             
           </nav>

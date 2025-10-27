@@ -25,7 +25,6 @@ export default function EmployeeFeedbackPage() {
     }
     setIsLoading(true);
     try {
-      // In a real app, employeeId/name would come from current user context
       await feedbackService.submitFeedback({
         employeeId: user.uid,
         employeeName: user.name,

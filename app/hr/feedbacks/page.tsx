@@ -1,43 +1,84 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { feedbackService } from '@/lib/firebase/services';
+import { Table, Button, Dropdown, Input, Modal } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import EditModal from './editModal';
+import AddModal from './addModal';
+import { FiSearch } from 'react-icons/fi';
 
-type Feedback = {
+interface Feedback {
   id: string;
   employeeName?: string;
   notes?: string;
   score: number;
-  createdAt?: Date | { toDate: () => Date } | null;
-};
+  updatedAt?: any;
+}
 
 export default function HRDashboardPage() {
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
-  const tableRef = useRef<HTMLDivElement>(null);
+  const [filteredList, setFilteredList] = useState<Feedback[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
 
   const isTimestamp = (val: unknown): val is { toDate: () => Date } =>
     typeof val === 'object' && val !== null && typeof (val as { toDate?: unknown }).toDate === 'function';
 
+  // ✅ Load feedbacks
   useEffect(() => {
-    const unsubscribe = feedbackService.subscribeFeedback((list) =>
-      setFeedbackList(
-        list.map(({ id, employeeName, notes, createdAt, score }) => ({
-          id,
-          employeeName,
-          notes,
-          createdAt,
-          score,
-        }))
-      )
-    );
+    const unsubscribe = feedbackService.subscribeFeedback((list) => {
+      const formatted = list.map(({ id, employeeName, notes, updatedAt, score }) => ({
+        id,
+        employeeName,
+        notes,
+        updatedAt,
+        score,
+      }));
+      setFeedbackList(formatted);
+      setFilteredList(formatted);
+    });
     return () => unsubscribe();
   }, []);
 
-  // ✅ Export as Excel
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      if (!searchQuery.trim()) {
+        setFilteredList(feedbackList);
+      } else {
+        const lower = searchQuery.toLowerCase();
+        setFilteredList(
+          feedbackList.filter(
+            (f) =>
+              f.employeeName?.toLowerCase().includes(lower) ||
+              f.notes?.toLowerCase().includes(lower)
+          )
+        );
+      }
+    }, 100);
+    return () => clearTimeout(delay);
+  }, [searchQuery, feedbackList]);
+
+  // ✅ Delete feedback
+  const handleDelete = (record: Feedback) => {
+    Modal.confirm({
+      title: 'Delete Feedback',
+      content: `Are you sure you want to delete ${record.employeeName || 'this'} feedback?`,
+      okText: 'Yes, delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        await feedbackService.deleteFeedback(record.id);
+      },
+    });
+  };
+
+  // ✅ Export Excel
   const exportExcel = () => {
     const ws = XLSX.utils.json_to_sheet(feedbackList);
     const wb = XLSX.utils.book_new();
@@ -45,34 +86,7 @@ export default function HRDashboardPage() {
     XLSX.writeFile(wb, 'feedback.xlsx');
   };
 
-  // ✅ Export as CSV
-  const exportCSV = () => {
-    const csvContent = [
-      ['Employee', 'Score', 'Notes', 'Date'],
-      ...feedbackList.map((f) => [
-        f.employeeName || 'Anonymous',
-        f.score,
-        f.notes || '',
-        f.createdAt
-          ? f.createdAt instanceof Date
-            ? f.createdAt.toLocaleDateString()
-            : isTimestamp(f.createdAt)
-            ? f.createdAt.toDate().toLocaleDateString()
-            : ''
-          : '',
-      ]),
-    ]
-      .map((row) => row.join(','))
-      .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'feedback.csv';
-    link.click();
-  };
-
-  // ✅ Export as PDF (with design)
+  // ✅ Export PDF
   const exportPDF = () => {
     const doc = new jsPDF();
     doc.text('Feedback Report', 14, 15);
@@ -82,11 +96,11 @@ export default function HRDashboardPage() {
         f.employeeName || 'Anonymous',
         f.score.toString(),
         f.notes || '',
-        f.createdAt
-          ? f.createdAt instanceof Date
-            ? f.createdAt.toLocaleDateString()
-            : isTimestamp(f.createdAt)
-            ? f.createdAt.toDate().toLocaleDateString()
+        f.updatedAt
+          ? f.updatedAt instanceof Date
+            ? f.updatedAt.toLocaleDateString()
+            : isTimestamp(f.updatedAt)
+            ? f.updatedAt.toDate().toLocaleDateString()
             : ''
           : '',
       ]),
@@ -94,128 +108,151 @@ export default function HRDashboardPage() {
     });
     doc.save('feedback.pdf');
   };
+  // ✅ Columns
+  const columns: ColumnsType<Feedback> = [
+    {
+      title: 'Date',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      sorter: (a, b) => {
+        const toMillis = (val: any) => {
+          if (!val) return 0;
+          if (val.seconds) return val.seconds * 1000;
+          if (val instanceof Date) return val.getTime();
+          const parsed = Date.parse(val);
+          return isNaN(parsed) ? 0 : parsed;
+        };
+        return toMillis(a.updatedAt) - toMillis(b.updatedAt);
+      },
+      render: (value: any) => {
+        const date =
+          value?.seconds
+            ? new Date(value.seconds * 1000)
+            : value instanceof Date
+            ? value
+            : new Date(value);
+        return date.toLocaleString();
+      },
+    },
+    {
+      title: 'Employee',
+      dataIndex: 'employeeName',
+      render: (name) => name || 'Anonymous',
+      sorter: (a, b) => (a.employeeName || '').localeCompare(b.employeeName || ''),
+    },
+    {
+      title: 'Score',
+      dataIndex: 'score',
+      render: (score) => '⭐'.repeat(Math.round(score)),
+      sorter: (a, b) => a.score - b.score,
+    },
+    {
+      title: 'Notes',
+      dataIndex: 'notes',
+      ellipsis: true,
+      render: (text: string) => <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: 'edit',
+                label: '✏️ Edit',
+                onClick: () => {
+                  setSelectedFeedback(record);
+                  setIsModalOpen(true);
+                },
+              },
+              {
+                key: 'delete',
+                label: '🗑️ Delete',
+                danger: true,
+                onClick: () => handleDelete(record),
+              },
+            ],
+          }}
+          trigger={['click']}
+        >
+          <Button>⋮</Button>
+        </Dropdown>
+      ),
+    },
+  ];
 
-  // ✅ Print Table
-  const printTable = () => {
-    const printContent = tableRef.current?.innerHTML;
-    const printWindow = window.open('', '', 'width=900,height=700');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Print Feedback</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              table { border-collapse: collapse; width: 100%; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-              th { background-color: #f8f9fa; }
-              tr:hover { background-color: #f1f1f1; }
-            </style>
-          </head>
-          <body>${printContent}</body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
-    }
+  // ✅ Save Changes
+  const handleSave = async () => {
+    if (!selectedFeedback) return;
+    await feedbackService.updateFeedback(selectedFeedback.id, {
+      score: selectedFeedback.score,
+      notes: selectedFeedback.notes,
+    });
+    setIsModalOpen(false);
+    setSelectedFeedback(null);
   };
 
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Feedback Dashboard</h2>
-
-        <div className="relative group">
-          <button className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition">
-            ⬇️ Export
-          </button>
-          <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
-            <button
-              onClick={exportExcel}
-              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-            >
-              📊 Excel
-            </button>
-            <button
-              onClick={exportCSV}
-              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-            >
-              📄 CSV
-            </button>
-            <button
-              onClick={exportPDF}
-              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-            >
-              🧾 PDF
-            </button>
-            <button
-              onClick={printTable}
-              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-            >
-              🖨️ Print
-            </button>
-          </div>
+        <div className="flex gap-2">
+          <Button onClick={exportExcel}>📊 Excel</Button>
+          <Button onClick={exportPDF}>🧾 PDF</Button>
+          <Button
+            type="primary"
+            onClick={() => {
+              setIsModalOpen(true);
+              setSelectedFeedback(null);
+            }}
+          >
+            + Add Feedback
+          </Button>
         </div>
       </div>
 
-      {/* ✅ Table */}
-      <Card>
+      <Card className="border-none shadow-none">
         <CardHeader>
-          <CardTitle>Recent Feedback</CardTitle>
-          <CardDescription>Latest feedback submissions</CardDescription>
-        </CardHeader>
-        <CardContent ref={tableRef}>
-          {feedbackList.length > 0 ? (
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                      Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                      Employee
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                      Score
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                      Notes
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-gray-100 bg-white">
-                  {feedbackList.slice(0, 5).map((fb) => (
-                    <tr key={fb.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {fb.createdAt
-                          ? fb.createdAt instanceof Date
-                            ? fb.createdAt.toLocaleDateString()
-                            : isTimestamp(fb.createdAt)
-                            ? fb.createdAt.toDate().toLocaleDateString()
-                            : 'Just now'
-                          : 'Just now'}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-800">
-                        {fb.employeeName || 'Anonymous'}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-yellow-500">
-                        {typeof fb.score === 'number' && fb.score > 0
-                          ? '⭐'.repeat(Math.round(fb.score))
-                          : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{fb.notes}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Recent Feedback</CardTitle>
+              <CardDescription>Latest feedback submissions</CardDescription>
             </div>
-          ) : (
-            <p className="text-sm text-gray-500 text-center py-6">No feedback yet.</p>
-          )}
+
+            {/* 🔍 Search Input */}
+            <div className="relative w-64">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+              <Input
+                placeholder="Search feedback..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <Table
+            columns={columns}
+            dataSource={filteredList.map((f) => ({ ...f, key: f.id }))}
+            pagination={{ pageSize: 5 }}
+          />
         </CardContent>
       </Card>
+
+      {isModalOpen && selectedFeedback && (
+        <EditModal
+          setIsModalOpen={setIsModalOpen}
+          selectedFeedback={selectedFeedback}
+          handleSave={handleSave}
+          setSelectedFeedback={setSelectedFeedback}
+        />
+      )}
+
+      {isModalOpen && !selectedFeedback && <AddModal setIsModalOpen={setIsModalOpen} />}
     </div>
   );
 }

@@ -13,7 +13,8 @@ export default function HRDashboardPage() {
     id: string;
     employeeName?: string;
     notes?: string;
-    createdAt?: Date | { toDate: () => Date } | null;
+    updatedAt?: Date | { toDate: () => Date } | null;
+
   };
 
   const isTimestamp = (val: unknown): val is { toDate: () => Date } =>
@@ -24,11 +25,11 @@ export default function HRDashboardPage() {
   useEffect(() => {
     const unsubscribe = feedbackService.subscribeFeedback((list) =>
       setFeedbackList(
-        list.map(({ id, employeeName, notes, createdAt }) => ({
+        list.map(({ id, employeeName, notes, updatedAt }) => ({
           id,
           employeeName,
           notes,
-          createdAt,
+          updatedAt,
         }))
       )
     );
@@ -115,11 +116,11 @@ export default function HRDashboardPage() {
                       <p className="text-sm text-gray-500">{fb.notes}</p>
                     </div>
                     <span className="text-xs text-gray-500">
-                     {fb.createdAt
-                        ? fb.createdAt instanceof Date
-                          ? fb.createdAt.toLocaleDateString()
-                          : isTimestamp(fb.createdAt)
-                          ? fb.createdAt.toDate().toLocaleDateString()
+                     {fb.updatedAt
+                        ? fb.updatedAt instanceof Date
+                          ? fb.updatedAt.toLocaleDateString()
+                          : isTimestamp(fb.updatedAt)
+                          ? fb.updatedAt.toDate().toLocaleDateString()
                           : 'Just now'
                         : 'Just now'}
                     </span>

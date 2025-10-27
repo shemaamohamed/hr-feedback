@@ -10,6 +10,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Loader2, Check, X } from 'lucide-react';
 import { getAuth } from 'firebase/auth';
 
+export interface UserDocument {
+  email: string;
+  name: string;
+  updatedAt: Date;
+  role?: 'hr' | 'employee';
+}
+
+
 
 export default function NewEmployeePage() {
   const [formData, setFormData] = useState({
@@ -24,6 +32,8 @@ export default function NewEmployeePage() {
   const [isLoading, setIsLoading] = useState(false);
   
   const { user } = useAuth();
+  const { signUp } = useAuth();
+
 
   const handleInputChange = (field: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
@@ -73,51 +83,30 @@ export default function NewEmployeePage() {
       setIsLoading(false);
       return;
     }
-
-    // 2️⃣ Only allow HR users
-    // Assuming your custom user object (from context) has the role
     if ((user as any)?.role !== 'hr') {
       setError('Only HR users can create accounts');
       setIsLoading(false);
       return;
     }
-
-    // 3️⃣ Get ID token from Firebase user
-    const idToken = await currentUser.getIdToken();
-
-    // 4️⃣ Call your backend API
-    const res = await fetch('/api/admin/create-user', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${idToken}`
-      },
-      body: JSON.stringify({
-        email: formData.email,
-        password: formData.password,
-        name: formData.name,
-        role: 'employee'
-      })
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data?.error || 'Failed to create employee');
+     try {
+        await signUp(formData.email, formData.password, formData.name);
+        showToast('Employee account created');
+        setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+     } 
+    catch{
+      throw new Error('Failed to create employee');
     }
 
-    // Success
-    showToast('Employee account created');
-    setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+  
 
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'An error occurred during registration');
+  } catch {
+    setError( 'An error occurred during registration');
   } finally {
     setIsLoading(false);
   }
 };
 
 
-  // Simple toast
   const [toast, setToast] = useState<{ message: string } | null>(null);
   const showToast = (message: string) => {
     setToast({ message });

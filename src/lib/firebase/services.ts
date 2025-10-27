@@ -2,6 +2,7 @@ import {
   collection,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   onSnapshot,
   query,
@@ -40,18 +41,6 @@ export interface Conversation {
   lastMessageSenderId: string;
 }
 
-export interface Task {
-  id?: string;
-  title: string;
-  description: string;
-  assignedTo: string;
-  assignedToName: string;
-  assignedBy: string;
-  status: 'pending' | 'in-progress' | 'done';
-  deadline: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
 
 export interface Notification {
   id?: string;
@@ -79,21 +68,25 @@ export const feedbackService = {
     }
   },
 
-  async updateFeedbackStatus(feedbackId: string) {
+  async updateFeedback(id: string, data: Partial<Feedback>) {
+  const docRef = doc(db, 'feedback', id);
+  await updateDoc(docRef, { ...data, updatedAt: Timestamp.now() });
+}
+,
+
+   async deleteFeedback(feedbackId: string) {
     try {
-      await updateDoc(doc(db, 'feedback', feedbackId), {
-        status,
-        updatedAt: Timestamp.now(),
-      });
+      await deleteDoc(doc(db, 'feedback', feedbackId));
+      console.log(`Feedback ${feedbackId} deleted successfully`);
     } catch (error) {
-      console.error('Error updating feedback:', error);
+      console.error('Error deleting feedback:', error);
       throw error;
     }
   },
 
   subscribeFeedback(callback: (feedback: (Feedback & { id: string })[]) => void) {
     try {
-      const q = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'));
+      const q = query(collection(db, 'feedback'), orderBy('updatedAt', 'desc'));
       return onSnapshot(q, (snapshot) => {
       const feedbackList = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as unknown as Feedback) })) as (Feedback & { id: string })[];
         callback(feedbackList);
@@ -103,6 +96,7 @@ export const feedbackService = {
       throw error;
     }
   },
+
 };
 
 export const chatService = {
@@ -185,59 +179,7 @@ export const chatService = {
   },
 };
 
-export const taskService = {
-  async assignTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) {
-    try {
-      const docRef = await addDoc(collection(db, 'tasks'), {
-        ...task,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      });
-      return docRef.id;
-    } catch (error) {
-      console.error('Error assigning task:', error);
-      throw error;
-    }
-  },
 
-  async updateTaskStatus(taskId: string, status: Task['status']) {
-    try {
-      await updateDoc(doc(db, 'tasks', taskId), {
-        status,
-        updatedAt: Timestamp.now(),
-      });
-    } catch (error) {
-      console.error('Error updating task:', error);
-      throw error;
-    }
-  },
-
-  subscribeTasks(employeeId: string, callback: (tasks: (Task & { id: string })[]) => void) {
-    try {
-      const q = query(collection(db, 'tasks'), where('assignedTo', '==', employeeId), orderBy('createdAt', 'desc'));
-      return onSnapshot(q, (snapshot) => {
-  const tasks = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as unknown as Task) })) as (Task & { id: string })[];
-        callback(tasks);
-      });
-    } catch (error) {
-      console.error('Error subscribing to tasks:', error);
-      throw error;
-    }
-  },
-
-  subscribeAllTasks(callback: (tasks: (Task & { id: string })[]) => void) {
-    try {
-      const q = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'));
-      return onSnapshot(q, (snapshot) => {
-  const tasks = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as unknown as Task) })) as (Task & { id: string })[];
-        callback(tasks);
-      });
-    } catch (error) {
-      console.error('Error subscribing to all tasks:', error);
-      throw error;
-    }
-  },
-};
 
 export const notificationService = {
   async createNotification(notification: Omit<Notification, 'id' | 'createdAt'>) {
