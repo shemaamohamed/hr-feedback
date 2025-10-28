@@ -3,12 +3,15 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  getDoc,
   doc,
   onSnapshot,
   query,
   where,
   orderBy,
   Timestamp,
+  getDocs,
+  limit
 } from 'firebase/firestore';
 import { db } from './auth';
 
@@ -22,6 +25,7 @@ export interface Feedback {
   updatedAt: Timestamp;
 }
 
+
 export interface ChatMessage {
   id?: string;
   conversationId: string;
@@ -30,7 +34,10 @@ export interface ChatMessage {
   message: string;
   timestamp: Timestamp;
   isRead: boolean;
+  isDeleted?: boolean;
+  replyTo?: string; // 🆕 ID of the message being replied to
 }
+
 
 export interface Conversation {
   id?: string;
@@ -100,33 +107,78 @@ export const feedbackService = {
 };
 
 export const chatService = {
-  async sendMessage(conversationId: string, message: Omit<ChatMessage, 'id' | 'timestamp' | 'conversationId'>) {
+ async sendMessage(
+  conversationId: string,
+  message: Omit<ChatMessage, 'id' | 'timestamp' | 'conversationId'>
+) {
+  try {
+    const docRef = await addDoc(collection(db, 'messages'), {
+      ...message,
+      conversationId,
+      timestamp: Timestamp.now(),
+      replyTo: message.replyTo || null, // ✅ أضف هذا السطر
+    });
+
+    // تحديث آخر رسالة في المحادثة
     try {
-      // Add message document
-      const docRef = await addDoc(collection(db, 'messages'), {
-        ...message,
-        conversationId,
-        timestamp: Timestamp.now(),
+      await updateDoc(doc(db, 'conversations', conversationId), {
+        lastMessage: message.message,
+        lastMessageTime: Timestamp.now(),
+        lastMessageSenderId: message.senderId,
       });
-
-      // Also update parent conversation's last message atomically
-      try {
-        await updateDoc(doc(db, 'conversations', conversationId), {
-          lastMessage: message.message,
-          lastMessageTime: Timestamp.now(),
-          lastMessageSenderId: message.senderId,
-        });
-      } catch (err) {
-        // Non-fatal: log but don't block message send
-        console.error('Failed to update conversation lastMessage:', err);
-      }
-
-      return docRef.id;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw error;
+    } catch (err) {
+      console.error('Failed to update conversation lastMessage:', err);
     }
-  },
+
+    return docRef.id;
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw error;
+  }
+},
+
+ async deleteMessage(messageId: string, conversationId: string, currentUserId: string) {
+  try {
+    const messageRef = doc(db, "messages", messageId);
+    const messageSnap = await getDoc(messageRef);
+
+    if (!messageSnap.exists()) throw new Error("Message not found");
+
+    const messageData = messageSnap.data() as ChatMessage;
+
+    if (messageData.senderId !== currentUserId) {
+      throw new Error("Unauthorized: You can only delete your own messages");
+    }
+
+    await updateDoc(messageRef, {
+      message: "🗑️ Deleted",
+      isDeleted: true,
+      editedAt: Timestamp.now(),
+    });
+
+    const convoRef = doc(db, "conversations", conversationId);
+    const q = query(
+      collection(db, "messages"),
+      where("conversationId", "==", conversationId),
+      orderBy("timestamp", "desc"),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty && snapshot.docs[0].id === messageId) {
+      await updateDoc(convoRef, {
+        lastMessage: "🗑️ Deleted",
+        lastMessageTime: Timestamp.now(),
+      });
+    }
+  } catch (error) {
+    console.error("Error deleting message:", error);
+    throw error;
+  }
+},
+
+
+
 
   async createConversation(participants: string[], participantNames: { [key: string]: string }) {
     try {

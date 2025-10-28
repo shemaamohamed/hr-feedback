@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { feedbackService } from '@/lib/firebase/services';
-import { Table, Button, Dropdown, Input, Modal } from 'antd';
+import { Table, Button, Dropdown, Input, Modal, DatePicker } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -11,6 +11,9 @@ import * as XLSX from 'xlsx';
 import EditModal from './editModal';
 import AddModal from './addModal';
 import { FiSearch } from 'react-icons/fi';
+import moment, { Moment } from 'moment';
+
+const { RangePicker } = DatePicker;
 
 interface Feedback {
   id: string;
@@ -24,13 +27,13 @@ export default function HRDashboardPage() {
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [filteredList, setFilteredList] = useState<Feedback[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateRange, setDateRange] = useState<[Moment | null, Moment | null] | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
 
   const isTimestamp = (val: unknown): val is { toDate: () => Date } =>
     typeof val === 'object' && val !== null && typeof (val as { toDate?: unknown }).toDate === 'function';
 
-  // ✅ Load feedbacks
   useEffect(() => {
     const unsubscribe = feedbackService.subscribeFeedback((list) => {
       const formatted = list.map(({ id, employeeName, notes, updatedAt, score }) => ({
@@ -46,23 +49,34 @@ export default function HRDashboardPage() {
     return () => unsubscribe();
   }, []);
 
+  // ✅ Filter by search and date range
   useEffect(() => {
     const delay = setTimeout(() => {
-      if (!searchQuery.trim()) {
-        setFilteredList(feedbackList);
-      } else {
+      let filtered = feedbackList;
+
+      // 🔍 Search
+      if (searchQuery.trim()) {
         const lower = searchQuery.toLowerCase();
-        setFilteredList(
-          feedbackList.filter(
-            (f) =>
-              f.employeeName?.toLowerCase().includes(lower) ||
-              f.notes?.toLowerCase().includes(lower)
-          )
+        filtered = filtered.filter(
+          (f) =>
+            f.employeeName?.toLowerCase().includes(lower) ||
+            f.notes?.toLowerCase().includes(lower)
         );
       }
+
+      if (dateRange && dateRange[0] && dateRange[1]) {
+        const [start, end] = dateRange;
+        filtered = filtered.filter((f) => {
+          if (!f.updatedAt) return false;
+          const date = f.updatedAt.toDate ? f.updatedAt.toDate() : new Date(f.updatedAt);
+          return date >= start.toDate() && date <= end.toDate();
+        });
+      }
+
+      setFilteredList(filtered);
     }, 100);
     return () => clearTimeout(delay);
-  }, [searchQuery, feedbackList]);
+  }, [searchQuery, feedbackList, dateRange]);
 
   // ✅ Delete feedback
   const handleDelete = (record: Feedback) => {
@@ -80,7 +94,20 @@ export default function HRDashboardPage() {
 
   // ✅ Export Excel
   const exportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(feedbackList);
+  const data = feedbackList.map((f) => ({
+  "Employee Name": f.employeeName || "Anonymous",
+  "Score": f.score.toString(),
+  "Notes": f.notes || "",
+  "Last Updated": f.updatedAt
+    ? f.updatedAt instanceof Date
+      ? f.updatedAt.toLocaleDateString()
+      : isTimestamp(f.updatedAt)
+      ? f.updatedAt.toDate().toLocaleDateString()
+      : ""
+    : "",
+}));
+
+    const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Feedback');
     XLSX.writeFile(wb, 'feedback.xlsx');
@@ -108,6 +135,7 @@ export default function HRDashboardPage() {
     });
     doc.save('feedback.pdf');
   };
+
   // ✅ Columns
   const columns: ColumnsType<Feedback> = [
     {
@@ -221,14 +249,20 @@ export default function HRDashboardPage() {
               <CardDescription>Latest feedback submissions</CardDescription>
             </div>
 
-            {/* 🔍 Search Input */}
-            <div className="relative w-64">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
-              <Input
-                placeholder="Search feedback..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+            {/* 🔍 Search + Date Range */}
+            <div className="flex gap-2 items-center">
+              <div className="relative w-64">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+                <Input
+                  placeholder="Search feedback..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <RangePicker
+                onChange={(dates) => setDateRange(dates as any)}
+                allowClear
               />
             </div>
           </div>

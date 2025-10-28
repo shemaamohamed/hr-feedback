@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Sender from "./sender";
 
 export default function HREmployeesPage() {
   const { user } = useAuth();
@@ -22,14 +23,15 @@ export default function HREmployeesPage() {
   const [messages, setMessages] = useState<(ChatMessage & { id: string })[]>([]);
   const [messageText, setMessageText] = useState("");
   const [search, setSearch] = useState("");
+  const [replyTo, setReplyTo] = useState<null | { senderName: string; message: string; messageId: string }>(null);
 
-  //  Subscribe to feedback (for employees)
+  // Subscribe to feedback (for employees)
   useEffect(() => {
     const unsub = feedbackService.subscribeFeedback(setFeedbackList);
     return () => unsub && unsub();
   }, []);
 
-  //  Derive unique employees list from feedback
+  // Derive unique employees list from feedback
   useEffect(() => {
     const map = new Map<string, string>();
     feedbackList.forEach((fb) => {
@@ -40,7 +42,7 @@ export default function HREmployeesPage() {
     setEmployees(Array.from(map.entries()).map(([id, name]) => ({ id, name })));
   }, [feedbackList]);
 
-  //  Subscribe to HR conversations
+  // Subscribe to HR conversations
   useEffect(() => {
     if (!user) return;
     const unsub = chatService.subscribeToConversations(user.uid, (items) => {
@@ -49,20 +51,20 @@ export default function HREmployeesPage() {
     return () => unsub && unsub();
   }, [user]);
 
-  //  Subscribe to messages of active conversation
+  // Subscribe to messages of active conversation
   useEffect(() => {
     if (!activeConversationId) return;
     const unsub = chatService.subscribeToConversation(activeConversationId, setMessages);
     return () => unsub && unsub();
   }, [activeConversationId]);
 
-  //  Scroll chat to bottom when messages change
+  // Scroll chat to bottom when messages change
   useEffect(() => {
     const chatBox = document.getElementById("chat-box");
     if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
   }, [messages]);
 
-  //  Find existing or create new conversation
+  // Find existing or create new conversation
   const openChatWith = async (employeeId: string, employeeName: string) => {
     if (!user) return;
 
@@ -82,7 +84,12 @@ export default function HREmployeesPage() {
     }
   };
 
-  //  Send message
+  // 🟢 handle reply click
+  const handleReply = (message: { senderName: string; message: string; messageId: string }) => {
+    setReplyTo(message);
+  };
+
+  // Send message
   const sendMessage = async () => {
     if (!activeConversationId || !user || !messageText.trim()) return;
     await chatService.sendMessage(activeConversationId, {
@@ -90,11 +97,13 @@ export default function HREmployeesPage() {
       senderName: user.name || user.uid,
       message: messageText.trim(),
       isRead: false,
+      replyTo, // attach reply info
     });
     setMessageText("");
+    setReplyTo(null);
   };
 
-  //  Active conversation details
+  // Active conversation details
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
   const chatPartnerName =
     activeConversation && activeConversation.participantNames
@@ -103,7 +112,7 @@ export default function HREmployeesPage() {
         )
       : "";
 
-  //  Filtered employee list based on search
+  // Filtered employee list based on search
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) =>
       emp.name.toLowerCase().includes(search.toLowerCase())
@@ -113,7 +122,7 @@ export default function HREmployeesPage() {
   return (
     <div className="min-h-screen p-6">
       <div className="grid grid-cols-3 gap-6">
-        {/* 👥 Employee + Conversations List */}
+        {/* Employee + Conversations List */}
         <div>
           <Card>
             <CardHeader>
@@ -151,7 +160,6 @@ export default function HREmployeesPage() {
                           : "hover:bg-gray-100"
                       }`}
                     >
-                      {/* Avatar Circle */}
                       <div className="w-9 h-9 flex items-center justify-center rounded-full bg-blue-500 text-white font-semibold uppercase">
                         {emp.name.charAt(0)}
                       </div>
@@ -182,7 +190,7 @@ export default function HREmployeesPage() {
           </Card>
         </div>
 
-        {/* 💬 Chat Window */}
+        {/* Chat Window */}
         <div className="col-span-2">
           <Card className="flex flex-col h-[70vh]">
             <CardHeader>
@@ -196,34 +204,45 @@ export default function HREmployeesPage() {
                 </div>
               ) : (
                 messages.map((m) => (
-                  <div
+                  <Sender
                     key={m.id}
-                    className={`mb-3 ${
-                      m.senderId === user?.uid ? "text-right" : "text-left"
-                    }`}
-                  >
-                    <div
-                      className={`inline-block px-3 py-2 rounded ${
-                        m.senderId === user?.uid
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-900"
-                      }`}
-                    >
-                      <div className="text-xs font-semibold">{m.senderName}</div>
-                      <div className="text-sm">{m.message}</div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {m.timestamp?.toDate
-                          ? m.timestamp.toDate().toLocaleString()
-                          : ""}
-                      </div>
-                    </div>
-                  </div>
+                    messageId={m.id}
+                    conversationId={activeConversationId}
+                    userId={user?.uid || ""}
+                    senderName={m.senderName}
+                    message={m.message}
+                    time={m.timestamp?.toDate ? m.timestamp.toDate().toLocaleString() : ""}
+                    isSender={m.senderId === user?.uid}
+                    replyTo={m.replyTo}
+                    onReply={() =>
+                      handleReply({
+                        senderName: m.senderName,
+                        message: m.message,
+                        messageId: m.id,
+                      })
+                    }
+                  />
                 ))
               )}
             </CardContent>
 
             {activeConversationId && (
               <div className="p-4 border-t">
+                {/* 🟢 Reply Preview */}
+                {replyTo && (
+                  <div className="bg-gray-100 p-2 mb-2 rounded-md text-sm flex justify-between items-center">
+                    <div>
+                      <strong>{replyTo.senderName}</strong>: {replyTo.message}
+                    </div>
+                    <button
+                      className="text-red-500 text-xs ml-2"
+                      onClick={() => setReplyTo(null)}
+                    >
+                      ✖
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <Input
                     value={messageText}
