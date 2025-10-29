@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { feedbackService } from '@/lib/firebase/services';
+import { feedbackService } from '@/lib/firebase/feedback';
 import { Table, Button, Dropdown, Input, Modal, DatePicker } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { jsPDF } from 'jspdf';
@@ -23,19 +23,23 @@ interface Feedback {
   updatedAt?: any;
 }
 
+
 export default function HRDashboardPage() {
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [filteredList, setFilteredList] = useState<Feedback[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [dateRange, setDateRange] = useState<[Moment | null, Moment | null] | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
 
   const isTimestamp = (val: unknown): val is { toDate: () => Date } =>
-    typeof val === 'object' && val !== null && typeof (val as { toDate?: unknown }).toDate === 'function';
+    typeof val === 'object' &&
+    val !== null &&
+    typeof (val as { toDate?: unknown }).toDate === 'function';
 
+  // ✅ Subscribe feedback
   useEffect(() => {
-    const unsubscribe = feedbackService.subscribeFeedback((list) => {
+    const unsubscribe = feedbackService.subscribeFeedback((list: Feedback[]) => {
       const formatted = list.map(({ id, employeeName, notes, updatedAt, score }) => ({
         id,
         employeeName,
@@ -64,6 +68,7 @@ export default function HRDashboardPage() {
         );
       }
 
+      // 📅 Date range
       if (dateRange && dateRange[0] && dateRange[1]) {
         const [start, end] = dateRange;
         filtered = filtered.filter((f) => {
@@ -94,18 +99,18 @@ export default function HRDashboardPage() {
 
   // ✅ Export Excel
   const exportExcel = () => {
-  const data = feedbackList.map((f) => ({
-  "Employee Name": f.employeeName || "Anonymous",
-  "Score": f.score.toString(),
-  "Notes": f.notes || "",
-  "Last Updated": f.updatedAt
-    ? f.updatedAt instanceof Date
-      ? f.updatedAt.toLocaleDateString()
-      : isTimestamp(f.updatedAt)
-      ? f.updatedAt.toDate().toLocaleDateString()
-      : ""
-    : "",
-}));
+    const data = feedbackList.map((f) => ({
+      'Employee Name': f.employeeName || 'Anonymous',
+      Score: f.score.toString(),
+      Notes: f.notes || '',
+      'Last Updated': f.updatedAt
+        ? f.updatedAt instanceof Date
+          ? f.updatedAt.toLocaleDateString()
+          : isTimestamp(f.updatedAt)
+          ? f.updatedAt.toDate().toLocaleDateString()
+          : ''
+        : '',
+    }));
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -136,14 +141,14 @@ export default function HRDashboardPage() {
     doc.save('feedback.pdf');
   };
 
-  // ✅ Columns
+  // ✅ Table Columns
   const columns: ColumnsType<Feedback> = [
     {
       title: 'Date',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       sorter: (a, b) => {
-        const toMillis = (val: any) => {
+        const toMillis = (val: any): number => {
           if (!val) return 0;
           if (val.seconds) return val.seconds * 1000;
           if (val instanceof Date) return val.getTime();
@@ -165,20 +170,22 @@ export default function HRDashboardPage() {
     {
       title: 'Employee',
       dataIndex: 'employeeName',
-      render: (name) => name || 'Anonymous',
+      render: (name: string | undefined) => name || 'Anonymous',
       sorter: (a, b) => (a.employeeName || '').localeCompare(b.employeeName || ''),
     },
     {
       title: 'Score',
       dataIndex: 'score',
-      render: (score) => '⭐'.repeat(Math.round(score)),
+      render: (score: number) => '⭐'.repeat(Math.round(score)),
       sorter: (a, b) => a.score - b.score,
     },
     {
       title: 'Notes',
       dataIndex: 'notes',
       ellipsis: true,
-      render: (text: string) => <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>,
+      render: (text: string | undefined) => (
+        <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
+      ),
     },
     {
       title: 'Actions',
@@ -261,7 +268,7 @@ export default function HRDashboardPage() {
                 />
               </div>
               <RangePicker
-                onChange={(dates) => setDateRange(dates as any)}
+                onChange={(dates) => setDateRange(dates as [Moment | null, Moment | null])}
                 allowClear
               />
             </div>
@@ -286,7 +293,9 @@ export default function HRDashboardPage() {
         />
       )}
 
-      {isModalOpen && !selectedFeedback && <AddModal setIsModalOpen={setIsModalOpen} />}
+      {isModalOpen && !selectedFeedback && (
+        <AddModal setIsModalOpen={setIsModalOpen} />
+      )}
     </div>
   );
 }

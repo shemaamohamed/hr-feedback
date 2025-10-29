@@ -1,103 +1,247 @@
-"use client";
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { chatService, ChatMessage } from "@/firebase/services";
+import { auth } from "@/firebase/config";
+import { Ionicons } from "@expo/vector-icons";
 
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { chatService, Conversation, ChatMessage } from '@/lib/firebase/services';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-
-export default function EmployeeChatPage() {
-  const { user } = useAuth();
-  const [conversations, setConversations] = useState<(Conversation & { id: string })[]>([]);
-  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+export default function ChatScreen() {
+  const { id } = useLocalSearchParams(); // conversation ID
   const [messages, setMessages] = useState<(ChatMessage & { id: string })[]>([]);
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    const unsub = chatService.subscribeToConversations(user.uid, (items) => {
-      setConversations(items);
-      if (!activeConvId && items.length > 0) setActiveConvId(items[0].id);
-    });
+    if (!id) return;
+    const unsub = chatService.subscribeToConversation(id, setMessages);
     return () => unsub && unsub();
-  }, [user, activeConvId]);
+  }, [id]);
 
-  useEffect(() => {
-    if (!activeConvId) return;
-    const unsub = chatService.subscribeToConversation(activeConvId, (items) => {
-      setMessages(items);
+  const sendMessage = async () => {
+    if (!text.trim() || !id) return;
+    await chatService.sendMessage(id, {
+      senderId: auth?.currentUser?.uid,
+      senderName: auth?.currentUser?.email || auth?.currentUser?.uid,
+      message: text.trim(),
+      isRead: false,
+      repliedTo: replyTo
+        ? { message: replyTo.message, senderName: replyTo.senderName }
+        : null,
     });
-    return () => unsub && unsub();
-  }, [activeConvId]);
+    setText("");
+    setReplyTo(null);
+  };
 
-  const send = async () => {
-    if (!activeConvId || !user || !text.trim()) return;
-    try {
-      await chatService.sendMessage(activeConvId, {
-        senderId: user.uid,
-        senderName: user.name || user.uid,
-        message: text.trim(),
-        isRead: false,
-      });
-      setText('');
-    } catch (err) {
-      console.error('send failed', err);
-    }
+  const deleteMessage = async (messageId: string) => {
+    Alert.alert("Delete Message", "Are you sure you want to delete this message?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await chatService.deleteMessage(id as string, messageId);
+        },
+      },
+    ]);
+  };
+
+  const renderMessage = ({ item }: { item: ChatMessage & { id: string } }) => {
+    const isMe = item.senderId === auth?.currentUser?.uid;
+
+    return (
+      <TouchableOpacity
+        onLongPress={() => deleteMessage(item.id)}
+        onPress={() => setReplyTo(item)}
+        activeOpacity={0.8}
+        style={[
+          styles.messageContainer,
+          isMe ? styles.messageRight : styles.messageLeft,
+        ]}
+      >
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {item.senderName?.charAt(0)?.toUpperCase() || "?"}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.bubble,
+            isMe ? styles.bubbleRight : styles.bubbleLeft,
+          ]}
+        >
+          {item.repliedTo && (
+            <View
+              style={[
+                styles.replyContainer,
+                isMe ? styles.replyRight : styles.replyLeft,
+              ]}
+            >
+              <Text style={styles.replyName}>{item.repliedTo.senderName}</Text>
+              <Text
+                numberOfLines={1}
+                style={styles.replyText}
+              >
+                {item.repliedTo.message}
+              </Text>
+            </View>
+          )}
+          <Text style={styles.messageText}>{item.message}</Text>
+          <Text style={styles.timeText}>
+            {new Date(item.timestamp?.seconds * 1000).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="grid grid-cols-3 gap-6">
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Conversations</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {conversations.length === 0 && <div className="text-sm text-gray-500">No conversations yet</div>}
-                {conversations.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setActiveConvId(c.id)}
-                    className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 ${activeConvId === c.id ? 'bg-gray-100' : ''}`}
-                  >
-                    {Object.values(c.participantNames || {}).filter((n) => n !== (user?.email || user?.uid))[0] || 'Conversation'}
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <FlatList
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={renderMessage}
+        contentContainerStyle={{ padding: 10 }}
+        inverted
+      />
 
-        <div className="col-span-2">
-          <Card className="flex flex-col h-[70vh]">
-            <CardHeader>
-              <CardTitle>Chat With {}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto">
-              {!activeConvId && <div className="text-sm text-gray-500">Select a conversation</div>}
-              {messages.map((m) => (
-                <div key={m.id} className={`mb-3 ${m.senderId === user?.uid ? 'text-right' : 'text-left'}`}>
-                  <div className={`inline-block px-3 py-2 rounded ${m.senderId === user?.uid ? 'bg-primary text-white' : 'bg-gray-100 text-gray-900'}`}>
-                    <div className="text-xs font-semibold">{m.senderName}</div>
-                    <div className="text-sm">{m.message}</div>
-                    <div className="text-xs text-gray-400 mt-1">{m.timestamp?.toDate ? m.timestamp.toDate().toLocaleString() : ''}</div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
+      {replyTo && (
+        <View style={styles.replyPreview}>
+          <Text style={styles.replyTitle}>Replying to {replyTo.senderName}</Text>
+          <Text numberOfLines={1} style={styles.replyPreviewText}>
+            {replyTo.message}
+          </Text>
+          <TouchableOpacity onPress={() => setReplyTo(null)}>
+            <Ionicons name="close" size={20} color="#555" />
+          </TouchableOpacity>
+        </View>
+      )}
 
-            <div className="p-4 border-t">
-              <div className="flex gap-2">
-                <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message..." />
-                <Button onClick={send}>Send</Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </div>
+      <View style={styles.inputContainer}>
+        <TextInput
+          placeholder="اكتب رسالة..."
+          value={text}
+          onChangeText={setText}
+          style={styles.input}
+        />
+        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+          <Ionicons name="send" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#F4F6FA" },
+
+  messageContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    marginVertical: 4,
+  },
+  messageLeft: { alignSelf: "flex-start" },
+  messageRight: { alignSelf: "flex-end", flexDirection: "row-reverse" },
+
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#3B82F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 6,
+  },
+  avatarText: { color: "#fff", fontWeight: "600" },
+
+  bubble: {
+    maxWidth: "75%",
+    borderRadius: 16,
+    padding: 10,
+    elevation: 1,
+  },
+  bubbleLeft: { backgroundColor: "#E9ECF1", borderTopLeftRadius: 2 },
+  bubbleRight: { backgroundColor: "#3B82F6", borderTopRightRadius: 2 },
+
+  messageText: {
+    color: "#fff",
+    fontSize: 15,
+  },
+
+  replyContainer: {
+    borderLeftWidth: 3,
+    paddingLeft: 6,
+    marginBottom: 6,
+  },
+  replyLeft: { borderColor: "#3B82F6" },
+  replyRight: { borderColor: "#fff" },
+  replyName: {
+    fontWeight: "600",
+    fontSize: 12,
+    color: "#222",
+  },
+  replyText: {
+    fontSize: 12,
+    color: "#555",
+  },
+
+  timeText: {
+    fontSize: 10,
+    alignSelf: "flex-end",
+    marginTop: 4,
+    opacity: 0.8,
+    color: "#fff",
+  },
+
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderTopWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#fff",
+  },
+  input: {
+    flex: 1,
+    backgroundColor: "#F0F2F5",
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    fontSize: 15,
+    marginRight: 8,
+  },
+  sendButton: {
+    backgroundColor: "#3B82F6",
+    borderRadius: 25,
+    padding: 10,
+  },
+
+  replyPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#E5EAF1",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: "#3B82F6",
+  },
+  replyTitle: { fontWeight: "600", fontSize: 13 },
+  replyPreviewText: { color: "#555", flex: 1, marginHorizontal: 6 },
+});

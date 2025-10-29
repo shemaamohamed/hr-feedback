@@ -53,58 +53,51 @@ export default function NewEmployeePage() {
   const isPasswordValid = Object.values(passwordChecks).every(Boolean);
   const doPasswordsMatch = formData.password === formData.confirmPassword && formData.confirmPassword !== '';
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setError('');
 
-  if (!formData.name.trim()) {
-    setError('Name is required');
-    return;
-  }
-
-  if (!isPasswordValid) {
-    setError('Password must be at least 6 characters and contain both letters and numbers');
-    return;
-  }
-
-  if (formData.password !== formData.confirmPassword) {
-    setError('Passwords do not match');
-    return;
-  }
+  if (!formData.name.trim()) return setError('Name is required');
+  if (!isPasswordValid) return setError('Password must be at least 6 characters and contain both letters and numbers');
+  if (formData.password !== formData.confirmPassword) return setError('Passwords do not match');
 
   setIsLoading(true);
 
   try {
     const auth = getAuth();
     const currentUser = auth.currentUser;
-
     if (!currentUser) {
-      setError('You must be logged in');
+      setError("You must be logged in");
       setIsLoading(false);
       return;
     }
-    if ((user as any)?.role !== 'hr') {
-      setError('Only HR users can create accounts');
-      setIsLoading(false);
-      return;
-    }
-     try {
-        await signUp(formData.email, formData.password, formData.name);
-        showToast('Employee account created');
-        setFormData({ name: '', email: '', password: '', confirmPassword: '' });
-     } 
-    catch{
-      throw new Error('Failed to create employee');
-    }
+    const idToken = await currentUser.getIdToken();
+    const res = await fetch('/api/admin/createuser', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: 'employee',
+      }),
+    });
 
-  
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create user');
 
-  } catch {
-    setError( 'An error occurred during registration');
+    showToast('Employee account created successfully');
+    setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+  } catch (err: any) {
+    setError(err.message || 'An error occurred');
   } finally {
     setIsLoading(false);
   }
 };
+
 
 
   const [toast, setToast] = useState<{ message: string } | null>(null);

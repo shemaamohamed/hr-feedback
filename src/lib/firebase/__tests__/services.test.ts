@@ -19,7 +19,7 @@ vi.mock('firebase/firestore', async () => {
   };
 });
 
-import { chatService } from '../services';
+import { chatService } from '../chat';
 import * as firestore from 'firebase/firestore';
 
 describe('chatService', () => {

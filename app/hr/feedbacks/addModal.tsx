@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { feedbackService } from '@/lib/firebase/services';
+import { feedbackService } from '@/lib/firebase/feedback';
 import { getEmployees } from '@/lib/firebase/userService';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 
-const AddModal = ({setIsModalOpen}) => {
+
+const AddModal = ({ setIsModalOpen }: { setIsModalOpen: (open: boolean) => void }) => {
   const [formData, setFormData] = useState({
     employees: [] as { id: string; name: string }[],
     selectedEmployeeId: '',

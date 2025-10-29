@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { Users, FileText, TrendingUp, Clock } from 'lucide-react';
-import { feedbackService } from '@/lib/firebase/services';
+import { feedbackService } from '@/lib/firebase/feedback';
 
 export default function HRDashboardPage() {
   const { user } = useAuth();

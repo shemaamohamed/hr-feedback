@@ -6,8 +6,9 @@ import {  Dropdown} from 'antd';
 import {
   chatService,
 
-} from "@/lib/firebase/services";
+} from "@/lib/firebase/chat";
 import { Reply, Trash } from "lucide-react";
+import MessageContent from "./messageContent"
 
 
 
@@ -86,7 +87,11 @@ export default function Sender({
         )}
 
         {/* النص الأساسي */}
-        <p className="whitespace-pre-wrap break-words">{message}</p>
+        <p className="whitespace-pre-wrap break-words">
+          <MessageContent
+          message={message}
+          />
+        </p>
 
         {/* الوقت */}
         <span

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { feedbackService } from '@/lib/firebase/services';
+import { feedbackService } from '@/lib/firebase/feedback';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
