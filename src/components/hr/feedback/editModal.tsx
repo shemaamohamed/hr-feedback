@@ -1,8 +1,6 @@
 import React from "react";
+import { Button } from '@/components/ui/button';
 
-// لو عندك نوع Feedback موجود في المشروع (زي من "@/lib/firebase/services")
-// ممكن تكتبي كده:
-// import { Feedback } from "@/lib/firebase/services";
 
 type Feedback = {
   id?: string;
@@ -10,7 +8,7 @@ type Feedback = {
   employeeName?: string;
   notes?: string;
   score?: number;
-  updatedAt?: any;
+  updatedAt?: Timestamp;
 };
 
 type EditModalProps = {
@@ -37,26 +35,30 @@ const EditModal: React.FC<EditModalProps> = ({
       >
         <div className="border-b pb-3 mb-4">
           <h2 className="text-xl font-semibold text-gray-800">
-            Edit Feedback for {selectedFeedback.employeeName || "Anonymous"}
+            Edit Feedback for  : {selectedFeedback.employeeName || "Anonymous"}
           </h2>
         </div>
 
         <div className="space-y-4">
           <div>
             <label className="block text-sm text-gray-600 mb-1">Score</label>
-            <input
-              type="number"
-              min="1"
-              max="10"
-              value={selectedFeedback.score ?? 0}
-              onChange={(e) =>
+           <input
+            type="number"
+            min="1"
+            max="5"
+            value={selectedFeedback.score ?? ""}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              if (value >= 1 && value <= 5) {
                 setSelectedFeedback({
                   ...selectedFeedback,
-                  score: Number(e.target.value),
-                })
+                  score: value,
+                });
               }
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-            />
+            }}
+            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+
           </div>
 
           <div>
@@ -75,19 +77,19 @@ const EditModal: React.FC<EditModalProps> = ({
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 border-t pt-3">
-          <button
+        <div className="mt-6 flex grid grid-cols-2 gap-3  pt-3">
+          <Button
             onClick={() => setIsModalOpen(false)}
-            className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
+            className="px-4 py-2  text-white bg-red-500 hover:bg-red-600"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            className="px-4 py-2"
           >
             Save
-          </button>
+          </Button>
         </div>
       </div>
     </div>

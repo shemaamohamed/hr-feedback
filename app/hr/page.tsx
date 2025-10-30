@@ -1,85 +1,80 @@
 'use client';
 
+
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
-import { Users, FileText, TrendingUp, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, FileText} from 'lucide-react';
 import { feedbackService } from '@/lib/firebase/feedback';
+import Feedback from '@/components/hr/feedback/feedback';
+import   {subscribeEmployees } from '@/lib/firebase/userService'
+import Chart from "@/components/hr/feedback/chart"
+import { Button } from '@/components/ui/button';
+import NewEmployee from "@/components/hr/employee/add"
 
-export default function HRDashboardPage() {
-  const { user } = useAuth();
-
-  type Feedback = {
+type Feedback = {
     id: string;
     employeeName?: string;
     notes?: string;
     updatedAt?: Date | { toDate: () => Date } | null;
 
-  };
+};
+type Employee ={
+  email: string;
+  name: string;
+  role?: 'employee';
 
-  const isTimestamp = (val: unknown): val is { toDate: () => Date } =>
-    typeof val === 'object' && val !== null && typeof (val as { toDate?: unknown }).toDate === 'function';
+}
+
+export default function HRDashboardPage() {
+
+
 
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+
+  useEffect(() => {
+    const unsubscribe = subscribeEmployees((list) => setEmployees(list));
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = feedbackService.subscribeFeedback((list) =>
-      setFeedbackList(
-        list.map(({ id, employeeName, notes, updatedAt }) => ({
-          id,
-          employeeName,
-          notes,
-          updatedAt,
-        }))
-      )
+      setFeedbackList(list)
+      
     );
     return () => unsubscribe();
   }, []);
 
+
+
   const stats = [
     {
-      title: 'Total Employees',
-      value: '156',
-      change: '+12 this month',
+      title: 'Employees',
+      value: employees.length.toString(),
+      change: 'Total Employees',
       icon: Users,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
+      color: 'text-white',
+      bgColor: 'bg-primary',
     },
     {
-      title: 'Pending Feedback',
+      title: 'Feedbacks',
       value: feedbackList.length.toString(),
       change: 'Total received',
       icon: FileText,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100',
+     color: 'text-white',
+      bgColor: 'bg-primary',
     },
-    {
-      title: 'Avg Response Rate',
-      value: '87%',
-      change: '+5% from last month',
-      icon: TrendingUp,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
-    },
-    {
-      title: 'Avg Response Time',
-      value: '2.4 days',
-      change: '-0.3 days',
-      icon: Clock,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
-    },
+
   ];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">HR Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back, {user?.email}</p>
-      </div>
+    <div className=" over-flow-y">
+   
 
       {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -94,68 +89,31 @@ export default function HRDashboardPage() {
                 <div className="text-2xl font-bold">{stat.value}</div>
                 <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
               </CardContent>
+            
             </Card>
           );
         })}
-      </div>
+        <Button
+        onClick={() => {
+              setIsModalOpen(true);
+            }}
 
-      {/* Recent Activity */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Feedback</CardTitle>
-            <CardDescription>Latest feedback submissions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {feedbackList.length > 0 ? (
-                feedbackList.slice(0, 5).map((fb) => (
-                  <div key={fb.id} className="flex items-center justify-between border-b pb-3 last:border-0">
-                    <div>
-                      <p className="font-medium">{fb.employeeName || 'Anonymous'}</p>
-                      <p className="text-sm text-gray-500">{fb.notes}</p>
-                    </div>
-                    <span className="text-xs text-gray-500">
-                     {fb.updatedAt
-                        ? fb.updatedAt instanceof Date
-                          ? fb.updatedAt.toLocaleDateString()
-                          : isTimestamp(fb.updatedAt)
-                          ? fb.updatedAt.toDate().toLocaleDateString()
-                          : 'Just now'
-                        : 'Just now'}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No feedback yet.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        >
+          Add new Employee +
+          </Button>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common HR tasks</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <button className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition">
-                <p className="font-medium">Create New Employee</p>
-                <p className="text-sm text-gray-500">Add a new team member</p>
-              </button>
-              <button className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition">
-                <p className="font-medium">Send Feedback Request</p>
-                <p className="text-sm text-gray-500">Request feedback from employees</p>
-              </button>
-              <button className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition">
-                <p className="font-medium">Generate Report</p>
-                <p className="text-sm text-gray-500">Create analytics report</p>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+       
       </div>
+      <Chart/>
+      <Feedback/>
+       {isModalOpen  && (
+        <NewEmployee setIsModalOpen={setIsModalOpen} />
+      )}
+
+
+      
+
+        
     </div>
   );
 }

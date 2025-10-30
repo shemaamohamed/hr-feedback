@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 
 
+
 const AddModal = ({ setIsModalOpen }: { setIsModalOpen: (open: boolean) => void }) => {
   const [formData, setFormData] = useState({
     employees: [] as { id: string; name: string }[],
@@ -76,7 +77,7 @@ const AddModal = ({ setIsModalOpen }: { setIsModalOpen: (open: boolean) => void 
                   onClick={(e) => e.stopPropagation()}
 >
         <CardHeader>
-          <CardTitle>Submit Feedback</CardTitle>
+          <CardTitle className="text-primary">Submit Feedback</CardTitle>
         </CardHeader>
 
         <form onSubmit={submit}>
@@ -87,7 +88,7 @@ const AddModal = ({ setIsModalOpen }: { setIsModalOpen: (open: boolean) => void 
                 id="employee"
                 value={formData.selectedEmployeeId}
                 onChange={(e) => setFormData({ ...formData, selectedEmployeeId: e.target.value })}
-                className="w-full rounded-md border p-2"
+                className="w-full rounded-md border  px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
               >
                 {formData.employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
@@ -101,22 +102,32 @@ const AddModal = ({ setIsModalOpen }: { setIsModalOpen: (open: boolean) => void 
               <Label htmlFor="notes">Notes</Label>
               <textarea
                 id="notes"
-                className="w-full rounded-md border p-2"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 required
               />
             </div>
 
-            <div>
+            <div
+            className="flex flex-col "
+            >
               <Label htmlFor="score">Score</Label>
               <input
                 id="score"
                 type="number"
                 min={1}
                 max={5}
-                value={formData.score}
-                onChange={(e) => setFormData({ ...formData, score: Number(e.target.value) })}
+              onChange={(e) => {
+              const value = Number(e.target.value);
+              if (value >= 1 && value <= 5) {
+                 setFormData({ ...formData, score: Number(e.target.value) })}
+              }
+            }
+            
+                value={formData.score?? ""}
+                            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+
 
               />
             </div>

@@ -1,12 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-// no client-side Link used here
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Loader2, Check, X } from 'lucide-react';
 import { getAuth } from 'firebase/auth';
 
@@ -19,7 +17,7 @@ export interface UserDocument {
 
 
 
-export default function NewEmployeePage() {
+export default function NewEmployee({ setIsModalOpen }: { setIsModalOpen: (open: boolean) => void }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -30,9 +28,7 @@ export default function NewEmployeePage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
-  const { user } = useAuth();
-  const { signUp } = useAuth();
+ 
 
 
   const handleInputChange = (field: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,7 +103,6 @@ const handleSubmit = async (e: React.FormEvent) => {
   };
 
   useEffect(() => {
-    // redirect non-HR away if desired, or just show access denied inside render (handled below)
   }, []);
 
   const PasswordCheck = ({ check, label }: { check: boolean; label: string }) => (
@@ -122,21 +117,23 @@ const handleSubmit = async (e: React.FormEvent) => {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50"
+          onClick={() => setIsModalOpen(false)}
+
+>
       {/* Toast */}
       {toast && (
         <div className="fixed right-4 top-4 z-50">
           <div className="rounded-md bg-green-600 text-white px-4 py-2 shadow">{toast.message}</div>
         </div>
       )}
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+
+      >
         <CardHeader className="space-y-3">
-          <div className="flex justify-center">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-2xl font-bold text-primary-foreground">HR</span>
-            </div>
-          </div>
-          <CardTitle className="text-center text-2xl">Create an account</CardTitle>
+         
+          <CardTitle className="text-center text-2xl text-primary">Add Empolyee</CardTitle>
     
         </CardHeader>
         

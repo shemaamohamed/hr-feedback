@@ -3,15 +3,19 @@
 import { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { feedbackService } from '@/lib/firebase/feedback';
-import { Table, Button, Dropdown, Input, Modal, DatePicker } from 'antd';
+import { Table, Dropdown, Input, Modal, DatePicker } from 'antd';
+import { Button } from '@/components/ui/button';
+
 import type { ColumnsType } from 'antd/es/table';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import EditModal from './editModal';
-import AddModal from './addModal';
+import EditModal from '@/components/hr/feedback/editModal'
+import AddModal from '@/components/hr/feedback/addModal';
 import { FiSearch } from 'react-icons/fi';
 import moment, { Moment } from 'moment';
+import { FileSpreadsheet, FileText } from "lucide-react";
+
 
 const { RangePicker } = DatePicker;
 
@@ -20,11 +24,11 @@ interface Feedback {
   employeeName?: string;
   notes?: string;
   score: number;
-  updatedAt?: any;
+  updatedAt?: Timestamp | any;
 }
 
 
-export default function HRDashboardPage() {
+export default function Feedback() {
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [filteredList, setFilteredList] = useState<Feedback[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -37,7 +41,6 @@ export default function HRDashboardPage() {
     val !== null &&
     typeof (val as { toDate?: unknown }).toDate === 'function';
 
-  // ✅ Subscribe feedback
   useEffect(() => {
     const unsubscribe = feedbackService.subscribeFeedback((list: Feedback[]) => {
       const formatted = list.map(({ id, employeeName, notes, updatedAt, score }) => ({
@@ -53,12 +56,10 @@ export default function HRDashboardPage() {
     return () => unsubscribe();
   }, []);
 
-  // ✅ Filter by search and date range
   useEffect(() => {
     const delay = setTimeout(() => {
       let filtered = feedbackList;
 
-      // 🔍 Search
       if (searchQuery.trim()) {
         const lower = searchQuery.toLowerCase();
         filtered = filtered.filter(
@@ -212,7 +213,7 @@ export default function HRDashboardPage() {
           }}
           trigger={['click']}
         >
-          <Button>⋮</Button>
+          <Button className="bg-white text-primary hover:bg-secondary">⋮</Button>
         </Dropdown>
       ),
     },
@@ -230,27 +231,38 @@ export default function HRDashboardPage() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Feedback Dashboard</h2>
-        <div className="flex gap-2">
-          <Button onClick={exportExcel}>📊 Excel</Button>
-          <Button onClick={exportPDF}>🧾 PDF</Button>
+    <div >
+      <div className="flex justify-end items-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 py-2">
+       <Button
+  onClick={exportExcel}
+  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-medium"
+>
+  <FileSpreadsheet className="w-4 h-4" />
+  Excel
+</Button>
+
+<Button
+  onClick={exportPDF}
+  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-medium"
+>
+  <FileText className="w-4 h-4" />
+  PDF
+</Button>
           <Button
-            type="primary"
             onClick={() => {
               setIsModalOpen(true);
               setSelectedFeedback(null);
             }}
           >
-            + Add Feedback
+            Add Feedback +
           </Button>
         </div>
       </div>
 
       <Card className="border-none shadow-none">
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className=" grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <CardTitle>Recent Feedback</CardTitle>
               <CardDescription>Latest feedback submissions</CardDescription>
@@ -267,20 +279,36 @@ export default function HRDashboardPage() {
                   className="pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <RangePicker
+              <div className="h-full ">  <RangePicker
+                                className="pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+
                 onChange={(dates) => setDateRange(dates as [Moment | null, Moment | null])}
                 allowClear
               />
+
+                </div>
+            
             </div>
           </div>
         </CardHeader>
 
         <CardContent>
-          <Table
-            columns={columns}
-            dataSource={filteredList.map((f) => ({ ...f, key: f.id }))}
-            pagination={{ pageSize: 5 }}
-          />
+         <Table
+  columns={columns}
+  dataSource={filteredList.map((f) => ({ ...f, key: f.id }))}
+  pagination={{ pageSize: 5 }}
+  components={{
+    header: {
+      cell: (props: any) => (
+        <th
+          {...props}
+          className="bg-[#0076C8] text-white text-center font-semibold"
+        />
+      ),
+    },
+  }}
+/>
+
         </CardContent>
       </Card>
 
