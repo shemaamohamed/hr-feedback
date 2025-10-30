@@ -44,7 +44,7 @@ useEffect(() => {
         }`}
       >
         <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
-          <h2 className="font-semibold text-lg text-gray-800 truncate">
+          <h2 className="font-semibold text-lg text-muted-foreground truncate">
             Chat with {chatPartnerName || "..."}
           </h2>
           <Button

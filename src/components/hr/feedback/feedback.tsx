@@ -15,6 +15,8 @@ import AddModal from '@/components/hr/feedback/addModal';
 import { FiSearch } from 'react-icons/fi';
 import moment, { Moment } from 'moment';
 import { FileSpreadsheet, FileText } from "lucide-react";
+import { Edit, Trash2, MoreVertical } from "lucide-react";
+
 
 
 const { RangePicker } = DatePicker;
@@ -192,29 +194,41 @@ export default function Feedback() {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'edit',
-                label: '✏️ Edit',
-                onClick: () => {
-                  setSelectedFeedback(record);
-                  setIsModalOpen(true);
-                },
-              },
-              {
-                key: 'delete',
-                label: '🗑️ Delete',
-                danger: true,
-                onClick: () => handleDelete(record),
-              },
-            ],
-          }}
-          trigger={['click']}
-        >
-          <Button className="bg-white text-primary hover:bg-secondary">⋮</Button>
-        </Dropdown>
+  <Dropdown
+  menu={{
+    items: [
+      {
+        key: "edit",
+        label: (
+          <div className="flex items-center gap-2">
+            <Edit size={16} className="text-blue-500" />
+            <span>Edit</span>
+          </div>
+        ),
+        onClick: () => {
+          setSelectedFeedback(record);
+          setIsModalOpen(true);
+        },
+      },
+      {
+        key: "delete",
+        label: (
+          <div className="flex items-center gap-2">
+            <Trash2 size={16} className="text-red-500" />
+            <span>Delete</span>
+          </div>
+        ),
+        danger: true,
+        onClick: () => handleDelete(record),
+      },
+    ],
+  }}
+  trigger={["click"]}
+>
+  <Button className="bg-white text-primary hover:bg-secondary flex items-center justify-center">
+    <MoreVertical size={18} />
+  </Button>
+</Dropdown>
       ),
     },
   ];

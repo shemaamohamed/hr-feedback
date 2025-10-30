@@ -36,7 +36,7 @@ conversations,
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-2 pb-4">
+        <div className="flex flex-col flex-1 overflow-y-auto px-2 pb-4 gap-2">
           {filteredEmployees.length === 0 ? (
             <div className="text-sm text-gray-500 text-center mt-4">
               No employees found
@@ -62,7 +62,7 @@ conversations,
                       : "hover:bg-gray-100"
                   }`}
                 >
-                  <div className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-500 text-white font-semibold uppercase">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-white font-semibold uppercase">
                     {emp?.name?.charAt(0)}
                   </div>
                   <div className="flex flex-col items-start min-w-0">

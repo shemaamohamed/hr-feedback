@@ -8,12 +8,12 @@ import {
 } from "@/lib/firebase/chat";
 import { feedbackService } from "@/lib/firebase/feedback";
 
-import EmployeeList from "./component/EmployeeList"; 
+import EmployeeList from "@/components/hr/chat/EmployeeList"; 
 import {
   Users,
 
 } from "lucide-react";
-import ChatWindow from "./component/ChatWindow";
+import ChatWindow from "@/components/hr/chat/ChatWindow";
 
 interface Employee {
   id: string;
@@ -193,8 +193,8 @@ const sendMessage = async () => {
         }`}
       >
         <div className="p-4 border-b flex items-center justify-between">
-          <h2 className="font-semibold text-lg text-gray-800 flex items-center gap-2">
-            <Users className="w-5 h-5 text-blue-600" /> Employees
+          <h2 className="font-semibold text-lg text-muted-foreground flex items-center gap-2">
+            <Users className="w-5 h-5 " /> Employees
           </h2>
         </div>
         <EmployeeList
