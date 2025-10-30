@@ -11,8 +11,14 @@ import {
   onSnapshot,
   doc,
   Timestamp,
+  
 } from "firebase/firestore";
+import {  ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "./auth"; 
+
+
 import { db } from "./auth";
+
 
 export interface ChatMessage {
   id: string;
@@ -21,6 +27,7 @@ export interface ChatMessage {
   message: string;
   timestamp?: any;
   isRead: boolean;
+  fileUrl?: string; 
   replyTo?: { senderName: string; message: string; messageId: string } | null;
 }
 
@@ -126,5 +133,12 @@ export const chatService = {
         callback(conversations);
       }
     );
+  },
+
+  async uploadFile(file: File) {
+    const fileRef = ref(storage, `chat_files/${Date.now()}_${file.name}`);
+    await uploadBytes(fileRef, file);
+    const fileUrl = await getDownloadURL(fileRef);
+    return fileUrl;
   },
 };

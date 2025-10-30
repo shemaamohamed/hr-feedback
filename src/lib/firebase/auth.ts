@@ -10,6 +10,7 @@ import {
 } from "firebase/auth";
 import type { User as FirebaseUser, UserCredential } from "firebase/auth";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { getStorage } from "firebase/storage"; // ✅ أضفنا دي
 import { firebaseConfig } from "./config";
 import { getAuthErrorInfo, logFirebaseError } from "./errors";
 
@@ -17,6 +18,7 @@ import { getAuthErrorInfo, logFirebaseError } from "./errors";
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app); //
 
 // Enhanced logging utility
 const debugLog = (message: string, data?: unknown) => {

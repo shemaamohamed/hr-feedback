@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState} from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   chatService,
@@ -7,18 +7,13 @@ import {
   ChatMessage,
 } from "@/lib/firebase/chat";
 import { feedbackService } from "@/lib/firebase/feedback";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import Sender from "./sender";
+
+import EmployeeList from "./component/EmployeeList"; 
 import {
-  Search,
-  Send,
   Users,
-  ArrowLeft,
-  Paperclip,
-  Image as ImageIcon,
-  X,
+
 } from "lucide-react";
+import ChatWindow from "./component/ChatWindow";
 
 interface Employee {
   id: string;
@@ -36,6 +31,7 @@ interface MergedItem {
 
 export default function HREmployeesPage() {
   const { user } = useAuth();
+const [isUploading, setIsUploading] = useState(false);
 
   const [conversations, setConversations] = useState<(Conversation & { id: string })[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -47,7 +43,6 @@ export default function HREmployeesPage() {
   const [mergedList, setMergedList] = useState<MergedItem[]>([]);
   const [showChat, setShowChat] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // 🔹 Subscribe Employees + Conversations
   useEffect(() => {
@@ -107,10 +102,7 @@ export default function HREmployeesPage() {
   }, [employees, conversations, user?.uid]);
 
   // 🔹 Scroll to bottom
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
+  
   const openChatWith = async (employeeId: string, employeeName: string) => {
     if (!user?.uid) return;
 
@@ -130,32 +122,57 @@ export default function HREmployeesPage() {
     setShowChat(true);
   };
 
-  const handleReply = (message: { senderName: string; message: string; messageId: string }) => {
-    setReplyTo(message);
-  };
+  
 
-  const sendMessage = async () => {
-    if (!activeConversationId || !user?.uid) return;
-    if (!messageText.trim() && !file) return;
+const sendMessage = async () => {
+  if (!activeConversationId || !user?.uid) return;
+  if (!messageText.trim() && !file) return;
 
-    let fileUrl = null;
-    if (file) {
-      fileUrl = await chatService.uploadFile(file);
+  setIsUploading(true);
+  let fileUrl: string | null = null;
+
+  if (file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!);
+
+    const resourceType = /\.(pdf|doc|docx|xls|xlsx|txt)$/i.test(file.name) ? "raw" : "image";
+
+    const url = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
+
+    try {
+      const res = await fetch(url, { method: "POST", body: formData });
+      const data = await res.json();
+      if (!data.secure_url) throw new Error("Upload failed, no URL returned");
+      fileUrl = data.secure_url;
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setIsUploading(false);
+      return;
     }
+  }
 
+  try {
     await chatService.sendMessage(activeConversationId, {
       senderId: user.uid,
       senderName: user.name || user.uid,
       message: messageText.trim(),
-      fileUrl,
+      fileUrl: fileUrl || null,
       isRead: false,
       replyTo,
     });
+  } catch (err) {
+    console.error("Send message failed:", err);
+  }
 
-    setMessageText("");
-    setReplyTo(null);
-    setFile(null);
-  };
+  setMessageText("");
+  setReplyTo(null);
+  setFile(null);
+  setIsUploading(false);
+};
+
+
+
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
   const chatPartnerName =
@@ -165,19 +182,13 @@ export default function HREmployeesPage() {
         )
       : "";
 
-  const filteredEmployees = useMemo(
-    () =>
-      mergedList.filter((emp) =>
-        emp?.name?.toLowerCase().includes(search.toLowerCase())
-      ),
-    [mergedList, search]
-  );
+ 
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:grid md:grid-cols-3 gap-4 p-4">
+    <div className="h-[600px] bg-gray-50 flex flex-col md:grid md:grid-cols-3 gap-4 p-4">
       {/* 🔹 Employee List */}
       <div
-        className={`bg-white rounded-2xl shadow-md flex flex-col transition-all duration-300 ${
+        className={`bg-white h-[600] flex flex-col transition-all duration-300 ${
           showChat ? "hidden md:flex" : "flex"
         }`}
       >
@@ -186,170 +197,37 @@ export default function HREmployeesPage() {
             <Users className="w-5 h-5 text-blue-600" /> Employees
           </h2>
         </div>
+        <EmployeeList
+        mergedList={mergedList} 
+        search={search}
+        setSearch={setSearch}
+        openChatWith={ openChatWith}
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        />
 
-        <div className="p-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search employee..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 rounded-full"
-            />
-          </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto px-2 pb-4">
-          {filteredEmployees.length === 0 ? (
-            <div className="text-sm text-gray-500 text-center mt-4">
-              No employees found
-            </div>
-          ) : (
-            filteredEmployees.map((emp) => {
-              const conv = conversations.find((c) => c.participants.includes(emp.id));
-              const lastMessage = conv?.lastMessage || "";
-              const lastMessageTime = conv?.lastMessageTime?.toDate
-                ? conv.lastMessageTime.toDate().toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "";
 
-              return (
-                <button
-                  key={emp.id}
-                  onClick={() => openChatWith(emp.id, emp.name)}
-                  className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-xl transition-all ${
-                    activeConversationId === conv?.id
-                      ? "bg-blue-100"
-                      : "hover:bg-gray-100"
-                  }`}
-                >
-                  <div className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-500 text-white font-semibold uppercase">
-                    {emp?.name?.charAt(0)}
-                  </div>
-                  <div className="flex flex-col items-start min-w-0">
-                    <span className="text-gray-800 font-medium truncate">{emp.name}</span>
-                    <span className="text-xs text-gray-500 truncate max-w-[180px]">
-                      {lastMessage || "No messages yet"}
-                    </span>
-                    {lastMessageTime && (
-                      <span className="text-[10px] text-gray-400 mt-1">
-                        {lastMessageTime}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
+       
       </div>
+      <ChatWindow
+        messages={messages}
+        user={user}
+        messageText={messageText}
+        setMessageText={setMessageText}
+        sendMessage={sendMessage}
+        replyTo={replyTo}
+        setReplyTo={setReplyTo}
+        file={file}
+        setFile={setFile}
+        showChat={showChat}
+        setShowChat={setShowChat}
+        activeConversationId={activeConversationId}
+        chatPartnerName={chatPartnerName}
+        isUploading={isUploading}
 
-      {/* 🔹 Chat Window */}
-      <div
-        className={`bg-white rounded-2xl shadow-md flex flex-col overflow-hidden transition-all duration-300 ${
-          showChat ? "flex col-span-2" : "hidden md:flex col-span-2"
-        }`}
-      >
-        <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
-          <h2 className="font-semibold text-lg text-gray-800 truncate">
-            Chat with {chatPartnerName || "..."}
-          </h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="md:hidden"
-            onClick={() => setShowChat(false)}
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
-          </Button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50" style={{ maxHeight: "70vh" }}>
-          {!activeConversationId ? (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-              Select an employee to start chatting
-            </div>
-          ) : (
-            <>
-              {messages.map((m) => (
-                <Sender
-                  key={m.id}
-                  messageId={m.id}
-                  conversationId={activeConversationId}
-                  userId={user?.uid || ""}
-                  senderName={m.senderName}
-                  message={m.message}
-                  fileUrl={m.fileUrl}
-                  time={
-                    m.timestamp?.toDate
-                      ? m.timestamp.toDate().toLocaleString()
-                      : ""
-                  }
-                  isSender={m.senderId === user?.uid}
-                  replyTo={m.replyTo}
-                  onReply={() =>
-                    handleReply({
-                      senderName: m.senderName,
-                      message: m.message,
-                      messageId: m.id,
-                    })
-                  }
-                />
-              ))}
-              <div ref={chatEndRef} />
-            </>
-          )}
-        </div>
-
-        {activeConversationId && (
-          <div className="p-4 border-t bg-gray-50">
-            {replyTo && (
-              <div className="bg-blue-50 p-2 mb-2 rounded-lg text-sm flex justify-between items-center border-l-4 border-blue-500">
-                <div>
-                  <strong>{replyTo.senderName}</strong>: {replyTo.message}
-                </div>
-                <button
-                  className="text-red-500 text-xs ml-2"
-                  onClick={() => setReplyTo(null)}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <label className="cursor-pointer text-gray-500 hover:text-blue-600">
-                <Paperclip className="w-5 h-5" />
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                />
-              </label>
-              {file && (
-                <span className="text-xs text-gray-600 truncate max-w-[120px]">
-                  {file.name}
-                </span>
-              )}
-
-              <Input
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                placeholder="Type a message..."
-                className="flex-1 rounded-full px-4 py-2 border-gray-300 focus:ring-2 focus:ring-blue-400"
-              />
-              <Button
-                onClick={sendMessage}
-                className="rounded-full px-3 py-2 bg-blue-600 hover:bg-blue-700"
-              >
-                <Send className="w-5 h-5 text-white" />
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
+      />
+      
     </div>
   );
 }

@@ -1,40 +1,86 @@
 "use client";
-import React from "react";
 import { Input } from "@/components/ui/input";
+import React, { useMemo } from "react";
 
-export default function EmployeeList({ mergedList, search, setSearch, openChatWith }: any) {
+import {
+  Search,
+
+
+} from "lucide-react";
+
+export default function EmployeeList({ mergedList, search, setSearch, openChatWith,
+conversations,
+        activeConversationId
+
+
+
+ }: any) {
+   const filteredEmployees = useMemo(
+    () =>
+      mergedList.filter((emp) =>
+        emp?.name?.toLowerCase().includes(search.toLowerCase())
+      ),
+    [mergedList, search]
+  );
   return (
-    <div className="w-full md:w-1/3 border-r bg-white dark:bg-gray-900 overflow-y-auto">
-      <div className="p-4">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="ابحث عن موظف..."
-          className="w-full"
-        />
-      </div>
+   <div className="h-full">
+    <div className="p-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search employee..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 rounded-full"
+            />
+          </div>
+        </div>
 
-      <ul>
-        {mergedList.map((emp: any) => (
-          <li
-            key={emp.id}
-            onClick={() => openChatWith(emp.id, emp.name)}
-            className="p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-b"
-          >
-            <div className="flex justify-between items-center">
-              <span className="font-medium">{emp.name}</span>
-              {emp.lastMessageTime && (
-                <span className="text-xs text-gray-500">
-                  {emp.lastMessageTime.toLocaleString("ar-EG")}
-                </span>
-              )}
+        <div className="flex-1 overflow-y-auto px-2 pb-4">
+          {filteredEmployees.length === 0 ? (
+            <div className="text-sm text-gray-500 text-center mt-4">
+              No employees found
             </div>
-            {emp.lastMessage && (
-              <p className="text-sm text-gray-600 truncate">{emp.lastMessage}</p>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
+          ) : (
+            filteredEmployees.map((emp) => {
+              const conv = conversations.find((c) => c.participants.includes(emp.id));
+              const lastMessage = conv?.lastMessage || "";
+              const lastMessageTime = conv?.lastMessageTime?.toDate
+                ? conv.lastMessageTime.toDate().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "";
+
+              return (
+                <button
+                  key={emp.id}
+                  onClick={() => openChatWith(emp.id, emp.name)}
+                  className={`w-full flex items-center gap-3 text-left px-3 py-2 rounded-xl transition-all ${
+                    activeConversationId === conv?.id
+                      ? "bg-blue-100"
+                      : "hover:bg-gray-100"
+                  }`}
+                >
+                  <div className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-500 text-white font-semibold uppercase">
+                    {emp?.name?.charAt(0)}
+                  </div>
+                  <div className="flex flex-col items-start min-w-0">
+                    <span className="text-gray-800 font-medium truncate">{emp.name}</span>
+                    <span className="text-xs text-gray-500 truncate max-w-[180px]">
+                      {lastMessage || "No messages yet"}
+                    </span>
+                    {lastMessageTime && (
+                      <span className="text-[10px] text-gray-400 mt-1">
+                        {lastMessageTime}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+   </div>
   );
 }
