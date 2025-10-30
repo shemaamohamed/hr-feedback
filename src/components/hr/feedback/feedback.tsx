@@ -295,6 +295,7 @@ export default function Feedback() {
         <CardContent>
          <Table
   columns={columns}
+  scroll={{ x: "max-content" }}
   dataSource={filteredList.map((f) => ({ ...f, key: f.id }))}
   pagination={{ pageSize: 5 }}
   components={{
@@ -302,7 +303,7 @@ export default function Feedback() {
       cell: (props: any) => (
         <th
           {...props}
-          className="bg-[#0076C8] text-white text-center font-semibold"
+          className="bg-[#0076C8] text-white text-center font-semibold "
         />
       ),
     },
