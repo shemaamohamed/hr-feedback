@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getB2Auth } from '../../../../src/lib/backblazeAuth';
 
 export async function POST(req: Request) {
   try {
@@ -8,55 +9,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing file name" }, { status: 400 });
     }
 
-    // 🔐 1. Authorize Backblaze Account
-    const keyId = process.env.B2_KEY_ID || process.env.NEXT_PUBLIC_B2_KEY_ID;
-    const appKey = process.env.B2_APPLICATION_KEY || process.env.NEXT_PUBLIC_B2_APPLICATION_KEY;
-
-    if (!keyId || !appKey) {
-      throw new Error("Missing Backblaze credentials in environment variables");
-    }
-
-    const authRes = await fetch("https://api.backblazeb2.com/b2api/v2/b2_authorize_account", {
-      headers: {
-        Authorization: "Basic " + Buffer.from(`${keyId}:${appKey}`).toString("base64"),
-      },
-    });
-
-    if (!authRes.ok) {
-      // Try to parse the B2 error response for better handling
-      let b2Err: unknown = null;
-      try {
-        b2Err = await authRes.json();
-      } catch {
-        b2Err = await authRes.text().catch(() => null);
-      }
-
-      console.error("B2 authorize failed (get-presigned-url):", authRes.status, b2Err);
-
-      const isTransactionCap =
-        authRes.status === 403 &&
-        b2Err &&
-        typeof b2Err === "object" &&
-        ("code" in (b2Err as Record<string, unknown>)
-          ? String((b2Err as Record<string, unknown>).code).toLowerCase() === "transaction_cap_exceeded"
-          : /cap_exceeded/i.test(String((b2Err as Record<string, unknown>).message || "")));
-
-      if (isTransactionCap) {
-        return NextResponse.json(
-          {
-            error: "transaction_cap_exceeded",
-            message:
-              "Backblaze transaction cap exceeded. Increase cap in Backblaze Caps & Alerts page or reduce request rate.",
-            details: b2Err,
-          },
-          { status: 429 }
-        );
-      }
-
-      return NextResponse.json({ error: "Authorization failed", details: b2Err }, { status: authRes.status });
-    }
-
-    const authData = await authRes.json();
+    // 🔐 1. Authorize Backblaze Account (cached)
+    const authData = await getB2Auth();
 
     if (!authData.authorizationToken || !authData.apiUrl || !authData.downloadUrl) {
       throw new Error("Authorization response missing expected fields");
@@ -64,11 +18,11 @@ export async function POST(req: Request) {
 
     // 🌐 2. Get Download Authorization Token (valid for 1 hour)
     const downloadAuthRes = await fetch(
-      `${authData.apiUrl}/b2api/v2/b2_get_download_authorization`,
+      `${String(authData.apiUrl)}/b2api/v2/b2_get_download_authorization`,
       {
         method: "POST",
         headers: {
-          Authorization: authData.authorizationToken,
+          Authorization: String(authData.authorizationToken),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -79,7 +33,7 @@ export async function POST(req: Request) {
       }
     );
 
-    const downloadAuthData = await downloadAuthRes.json();
+  const downloadAuthData = await downloadAuthRes.json();
 
     if (!downloadAuthData.authorizationToken) {
       // Attempt to surface B2 error details for download auth
@@ -110,9 +64,9 @@ export async function POST(req: Request) {
     }
 
     // 🔗 3. Generate the full presigned URL
-    const presignedUrl = `${authData.downloadUrl}/file/${process.env.NEXT_PUBLIC_B2_BUCKET_NAME}/${encodeURIComponent(
+    const presignedUrl = `${String(authData.downloadUrl)}/file/${process.env.NEXT_PUBLIC_B2_BUCKET_NAME}/${encodeURIComponent(
       fileName
-    )}?Authorization=${downloadAuthData.authorizationToken}`;
+    )}?Authorization=${String(downloadAuthData.authorizationToken)}`;
 
     return NextResponse.json({ presignedUrl });
   } catch (error: unknown) {
@@ -130,10 +84,18 @@ export async function POST(req: Request) {
         ? String((error as Record<string, unknown>).code)
         : "";
 
+    // If helper threw an error with `.body`, check there too
+  const maybeBody = error && typeof error === "object" && "body" in (error as Record<string, unknown>) ? (error as Record<string, unknown>).body : null;
+    const maybeBodyCode = maybeBody && typeof maybeBody === "object" && "code" in (maybeBody as Record<string, unknown>) ? String((maybeBody as Record<string, unknown>).code) : "";
+    const maybeBodyMessage = maybeBody && typeof maybeBody === "object" && "message" in (maybeBody as Record<string, unknown>) ? String((maybeBody as Record<string, unknown>).message) : "";
+
     const isTransactionCap =
       (maybeCode && maybeCode.toLowerCase() === "transaction_cap_exceeded") ||
+      (maybeBodyCode && maybeBodyCode.toLowerCase() === "transaction_cap_exceeded") ||
       (maybeMessage && /cap_exceeded/i.test(maybeMessage)) ||
-      (maybeMessage && maybeMessage.includes("transaction_cap_exceeded"));
+      (maybeBodyMessage && /cap_exceeded/i.test(maybeBodyMessage)) ||
+      (maybeMessage && maybeMessage.includes("transaction_cap_exceeded")) ||
+      (maybeBodyMessage && maybeBodyMessage.includes("transaction_cap_exceeded"));
 
     if (isTransactionCap) {
       return NextResponse.json(

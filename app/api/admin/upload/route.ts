@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getB2Auth } from '../../../../src/lib/backblazeAuth';
 
 export async function POST(req: Request) {
   try {
@@ -7,68 +8,37 @@ export async function POST(req: Request) {
 
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-    // 🔐 1. Authorization
-    const keyId = process.env.B2_KEY_ID || process.env.NEXT_PUBLIC_B2_KEY_ID;
-    const appKey = process.env.B2_APPLICATION_KEY || process.env.NEXT_PUBLIC_B2_APPLICATION_KEY;
+    // 🔐 1. Authorization (cached helper)
+    let authData: Record<string, unknown> | null = null;
+    try {
+      authData = await getB2Auth();
+    } catch (err) {
+      console.error("B2 authorize failed:", err);
 
-    if (!keyId || !appKey) {
-      return NextResponse.json({ error: "Missing Backblaze credentials in environment" }, { status: 500 });
-    }
+      const e = err as Record<string, unknown> & { status?: number; body?: unknown };
+      const body = e.body ?? null;
 
-    const authRes = await fetch("https://api.backblazeb2.com/b2api/v2/b2_authorize_account", {
-      headers: {
-        Authorization: "Basic " + Buffer.from(`${keyId}:${appKey}`).toString("base64"),
-      },
-    });
+      const bodyCode = body && typeof body === "object" && "code" in (body as Record<string, unknown>) ? String((body as Record<string, unknown>).code) : "";
+      const bodyMessage = body && typeof body === "object" && "message" in (body as Record<string, unknown>) ? String((body as Record<string, unknown>).message) : "";
 
-    if (!authRes.ok) {
-      // Try to parse JSON body from B2 for a clearer error message
-      let b2Err: unknown = null;
-      try {
-        b2Err = await authRes.json();
-      } catch {
-        b2Err = await authRes.text().catch(() => null);
-      }
-
-      console.error("B2 authorize failed:", authRes.status, b2Err);
-
-      // Handle Backblaze transaction cap exceeded specifically for clearer guidance
-      if (
-        authRes.status === 403 &&
-        b2Err &&
-        typeof b2Err === "object" &&
-        ("code" in (b2Err as Record<string, unknown>)
-          ? (String((b2Err as Record<string, unknown>).code).toLowerCase() === "transaction_cap_exceeded")
-          : false || /cap_exceeded/i.test(String((b2Err as Record<string, unknown>).message || "")))
-      ) {
-        const code = (b2Err as Record<string, unknown>).code ?? null;
-        const message = (b2Err as Record<string, unknown>).message ?? b2Err;
+      if ((e.status === 403 && (bodyCode.toLowerCase() === "transaction_cap_exceeded" || /cap_exceeded/i.test(bodyMessage))) || String(e.message || "").includes("transaction_cap_exceeded")) {
         return NextResponse.json(
           {
             error: "transaction_cap_exceeded",
-            code,
-            message,
-            hint: "Backblaze transaction cap exceeded. Increase your transaction cap in the Backblaze Caps & Alerts page or reduce request rate.",
+            message: "Backblaze transaction cap exceeded. Increase your transaction cap in the Backblaze Caps & Alerts page or reduce request rate.",
+            details: body,
           },
           { status: 429 }
         );
       }
 
-      // Forward the B2 error payload (or textual body) with the original status so it's easier to debug
-      return NextResponse.json({ error: "B2 authorize failed", details: b2Err }, { status: authRes.status });
-    }
-
-    const authData = await authRes.json();
-
-    if (!authData.apiUrl || !authData.authorizationToken) {
-      console.error("B2 auth response missing fields", authData);
-      return NextResponse.json({ error: "Authorization response invalid", details: authData }, { status: 502 });
+      return NextResponse.json({ error: "B2 authorize failed", details: body ?? e.message }, { status: e.status ?? 502 });
     }
 
     // 🌐 2. Get upload URL
-    const uploadUrlRes = await fetch(`${authData.apiUrl}/b2api/v2/b2_get_upload_url`, {
+    const uploadUrlRes = await fetch(`${String(authData.apiUrl)}/b2api/v2/b2_get_upload_url`, {
       method: "POST",
-      headers: { Authorization: authData.authorizationToken, "Content-Type": "application/json" },
+      headers: { Authorization: String(authData.authorizationToken), "Content-Type": "application/json" },
       body: JSON.stringify({ bucketId: process.env.NEXT_PUBLIC_B2_BUCKET_ID || process.env.B2_BUCKET_ID }),
     });
 
