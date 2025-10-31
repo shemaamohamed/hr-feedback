@@ -74,6 +74,7 @@ export const chatService = {
 
     await updateDoc(messageRef, {
       message: "🗑️ Deleted",
+      fileUrl:"",
       isDeleted: true,
       editedAt: Timestamp.now(),
     });

@@ -132,19 +132,19 @@ const sendMessage = async () => {
   let fileUrl: string | null = null;
 
   if (file) {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!);
-
-    const resourceType = /\.(pdf|doc|docx|xls|xlsx|txt)$/i.test(file.name) ? "raw" : "image";
-
-    const url = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
-
     try {
-      const res = await fetch(url, { method: "POST", body: formData });
+      // ✳️ نرفع الملف للسيرفر (اللي هيكلمه يرفع لـ Backblaze)
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+
       const data = await res.json();
-      if (!data.secure_url) throw new Error("Upload failed, no URL returned");
-      fileUrl = data.secure_url;
+      if (!data.fileName) throw new Error("Upload failed");
+      fileUrl = data.fileName;
     } catch (err) {
       console.error("Upload failed:", err);
       setIsUploading(false);
@@ -153,6 +153,7 @@ const sendMessage = async () => {
   }
 
   try {
+    // ✉️ إرسال الرسالة بعد رفع الملف
     await chatService.sendMessage(activeConversationId, {
       senderId: user.uid,
       senderName: user.name || user.uid,
@@ -170,8 +171,6 @@ const sendMessage = async () => {
   setFile(null);
   setIsUploading(false);
 };
-
-
 
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId);

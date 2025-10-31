@@ -72,7 +72,7 @@ useEffect(() => {
                   userId={user?.uid || ""}
                   senderName={m.senderName}
                   message={m.message}
-                  fileUrl={m.fileUrl}
+                  fileUrl={m?.fileUrl}
                   time={
                     m.timestamp?.toDate
                       ? m.timestamp.toDate().toLocaleString()
