@@ -46,12 +46,20 @@ export const chatService = {
     conversationId: string,
     message: Omit<ChatMessage, "id" | "timestamp" | "conversationId">
   ) {
-    const docRef = await addDoc(collection(db, "messages"), {
+    // Build payload and strip undefined fields (Firestore rejects `undefined`)
+    const payload: Record<string, unknown> = {
       ...message,
       conversationId,
       timestamp: Timestamp.now(),
       replyTo: message.replyTo || null,
+    };
+
+    // Remove keys that are explicitly undefined (Firestore doesn't accept undefined)
+    Object.keys(payload).forEach((k) => {
+      if (payload[k] === undefined) delete payload[k];
     });
+
+  const docRef = await addDoc(collection(db, "messages"), payload as Record<string, unknown>);
 
     await updateDoc(doc(db, "conversations", conversationId), {
       lastMessage: message.message,
@@ -117,7 +125,7 @@ export const chatService = {
     return onSnapshot(
       query(collection(db, "messages"), where("conversationId", "==", conversationId), orderBy("timestamp", "asc")),
       (snapshot) => {
-        const messages = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as ChatMessage) }));
+          const messages = snapshot.docs.map((d) => ({ ...(d.data() as ChatMessage), id: d.id }));
         callback(messages);
       }
     );
@@ -130,7 +138,7 @@ export const chatService = {
     return onSnapshot(
       query(collection(db, "conversations"), where("participants", "array-contains", userId), orderBy("lastMessageTime", "desc")),
       (snapshot) => {
-        const conversations = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Conversation) }));
+        const conversations = snapshot.docs.map((d) => ({ ...(d.data() as Conversation), id: d.id }));
         callback(conversations);
       }
     );

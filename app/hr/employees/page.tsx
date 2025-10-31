@@ -128,6 +128,7 @@ const sendMessage = async () => {
   if (!activeConversationId || !user?.uid) return;
   if (!messageText.trim() && !file) return;
 
+  console.debug("sendMessage:start", { activeConversationId, messageText, file, replyTo });
   setIsUploading(true);
   let fileUrl: string | null = null;
 
@@ -143,6 +144,7 @@ const sendMessage = async () => {
       });
 
       const data = await res.json();
+      console.debug("upload:response", data);
       if (!data.fileName) throw new Error("Upload failed");
       fileUrl = data.fileName;
     } catch (err) {
@@ -154,14 +156,16 @@ const sendMessage = async () => {
 
   try {
     // ✉️ إرسال الرسالة بعد رفع الملف
-    await chatService.sendMessage(activeConversationId, {
+    console.debug("sendMessage:aboutToSend", { fileUrl, replyTo });
+    const msgId = await chatService.sendMessage(activeConversationId, {
       senderId: user.uid,
       senderName: user.name || user.uid,
       message: messageText.trim(),
-      fileUrl: fileUrl || null,
+      fileUrl: fileUrl ?? undefined,
       isRead: false,
       replyTo,
     });
+    console.debug("sendMessage:sent", { msgId });
   } catch (err) {
     console.error("Send message failed:", err);
   }
@@ -180,6 +184,21 @@ const sendMessage = async () => {
           (n) => n !== (user?.email || user?.uid)
         )
       : "";
+
+  // Wrapper to adapt ChatWindow's setReplyTo signature to the React state setter.
+  const handleSetReplyTo = (
+    value: { senderName: string; message: string; messageId?: string } | string | null
+  ) => {
+    if (typeof value === "string") {
+      // if a message id is passed, find the message and set replyTo to the message object
+      const m = messages.find((mm) => mm.id === value);
+      if (m) setReplyTo({ senderName: m.senderName, message: m.message, messageId: m.id });
+      else setReplyTo(null);
+    } else {
+      // value is already an object or null
+      setReplyTo(value as { senderName: string; message: string; messageId: string } | null);
+    }
+  };
 
  
 
@@ -215,8 +234,8 @@ const sendMessage = async () => {
         messageText={messageText}
         setMessageText={setMessageText}
         sendMessage={sendMessage}
-        replyTo={replyTo}
-        setReplyTo={setReplyTo}
+  replyTo={replyTo}
+  setReplyTo={handleSetReplyTo}
         file={file}
         setFile={setFile}
         showChat={showChat}

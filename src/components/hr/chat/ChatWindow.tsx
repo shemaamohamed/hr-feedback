@@ -15,7 +15,8 @@ interface ChatMessage {
   senderName: string;
   message: string;
   senderId?: string;
-  replyTo?: { senderName: string; message: string } | string | null;
+  // replyTo can be either a message id (string) or an object containing senderName, message and optional messageId
+  replyTo?: { senderName: string; message: string; messageId?: string } | string | null;
   timestamp?: { toDate?: () => Date } | null;
   fileUrl?: string | null;
 }
@@ -26,8 +27,8 @@ interface ChatWindowProps {
   messageText: string;
   setMessageText: (value: string) => void;
   sendMessage: () => void;
-  replyTo: { senderName: string; message: string } | string | null;
-  setReplyTo: (value: { senderName: string; message: string } | string | null) => void;
+  replyTo: { senderName: string; message: string; messageId?: string } | string | null;
+  setReplyTo: (value: { senderName: string; message: string; messageId?: string } | string | null) => void;
   file: File | null;
   setFile: (file: File | null) => void;
   showChat: boolean;

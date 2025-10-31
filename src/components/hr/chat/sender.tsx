@@ -20,7 +20,7 @@ interface SenderProps {
   message: string;
   time: string;
   isSender: boolean;
-  replyTo?: { senderName: string; message: string } | string | null;
+  replyTo?: { senderName: string; message: string; messageId?: string } | string | null;
   onReply: () => void;
   messages?: { id: string; senderName: string; message: string }[];
   fileUrl?:string
