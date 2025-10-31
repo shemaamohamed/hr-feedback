@@ -22,7 +22,7 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
     <div className="flex bg-muted/30 min-h-screen">
       {/* مرر الحالة و الدالة للسايدبار */}
       <Sidebar
-        userEmail={user?.email}
+        userEmail={user?.email ?? undefined}
         onLogout={handleLogout}
         collapsed={collapsed}
         setCollapsed={setCollapsed}

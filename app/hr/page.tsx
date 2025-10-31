@@ -19,10 +19,9 @@ type Feedback = {
 
 };
 type Employee ={
-  email: string;
+  id: string;
   name: string;
-  role?: 'employee';
-
+  role?: string;
 }
 
 export default function HRDashboardPage() {

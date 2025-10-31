@@ -5,17 +5,29 @@ import {  onSnapshot, query, where } from 'firebase/firestore';
 export async function getEmployees() {
   const snapshot = await getDocs(collection(db, 'users'));
   return snapshot.docs
-    .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
-    .filter(u => u.role === 'employee'); 
+    .map((doc) => {
+      const raw = doc.data() as Record<string, unknown>;
+      return {
+        id: doc.id,
+        name: typeof raw.name === 'string' ? raw.name : '',
+        role: typeof raw.role === 'string' ? raw.role : undefined,
+      };
+    })
+    .filter((u) => u.role === 'employee');
 }
-export function subscribeEmployees(callback: (employees: any[]) => void) {
+
+export function subscribeEmployees(callback: (employees: { id: string; name: string; role?: string }[]) => void) {
   const q = query(collection(db, 'users'), where('role', '==', 'employee'));
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
-    const employees = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as any),
-    }));
+    const employees = snapshot.docs.map((doc) => {
+      const raw = doc.data() as Record<string, unknown>;
+      return {
+        id: doc.id,
+        name: typeof raw.name === 'string' ? raw.name : '',
+        role: typeof raw.role === 'string' ? raw.role : undefined,
+      };
+    });
 
     callback(employees);
   });

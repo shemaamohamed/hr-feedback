@@ -1,32 +1,19 @@
 "use client";
 import { ResponsivePieCanvas } from "@nivo/pie";
-import { useEffect, useState } from "react";
-import { feedbackService } from "@/lib/firebase/feedback";
-
-interface Feedback {
-  id: string;
-  employeeName: string;
-  notes: string;
-  updatedAt: string;
-  score: number;
-}
+import { useMemo } from "react";
+import { useFeedback } from "@/contexts/FeedbackContext";
 
 export default function KpiScoreChart() {
-  const [data, setData] = useState<{ id: string; label: string; value: number }[]>([]);
+  const { state } = useFeedback();
 
-  useEffect(() => {
-    const unsubscribe = feedbackService.subscribeFeedback((list: Feedback[]) => {
-      const scoreCounts = [1, 2, 3, 4, 5].map((score) => ({
-        id: `${score} Stars`,
-        label: `${score} Stars`,
-        value: list.filter((f) => f.score === score).length, // ← استخدم list بدل feedbackList
-      }));
-
-      setData(scoreCounts);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const data = useMemo(() => {
+    const feedbackList = (state.feedbackList || []) as { score?: number }[];
+    return [1, 2, 3, 4, 5].map((score) => ({
+      id: `${score} Stars`,
+      label: `${score} Stars`,
+      value: feedbackList.filter((f) => Math.round(Number(f.score || 0)) === score).length,
+    }));
+  }, [state.feedbackList]);
   const colorMap: Record<string, string> = {
     "1 Stars": "#B3E5FC", // أزرق سماوي فاتح جدًا
     "2 Stars": "#81D4FA", // أزرق فاتح

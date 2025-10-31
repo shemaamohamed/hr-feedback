@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from 'react';
-import { feedbackService } from '@/lib/firebase/feedback';
+import { useFeedback } from '@/contexts/FeedbackContext';
 import { getEmployees } from '@/lib/firebase/userService';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,7 @@ const AddModal = ({ setIsModalOpen }: { setIsModalOpen: (open: boolean) => void 
   });
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const { submitFeedback } = useFeedback();
 
   useEffect(() => {
     async function fetchEmployees() {
@@ -42,7 +43,7 @@ const AddModal = ({ setIsModalOpen }: { setIsModalOpen: (open: boolean) => void 
 
     setIsLoading(true);
     try {
-      await feedbackService.submitFeedback({
+      await submitFeedback({
         employeeId: employee.id,
         employeeName: employee.name,
         notes,

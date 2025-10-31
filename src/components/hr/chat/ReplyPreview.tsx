@@ -2,7 +2,12 @@
 import React from "react";
 import { X } from "lucide-react";
 
-export default function ReplyPreview({ replyTo, onCancel }: any) {
+interface Props {
+  replyTo: { message: string };
+  onCancel: () => void;
+}
+
+export default function ReplyPreview({ replyTo, onCancel }: Props) {
   return (
     <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 px-3 py-2 border-t">
       <div className="text-sm truncate">

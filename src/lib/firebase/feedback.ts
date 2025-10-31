@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {
   collection,
   addDoc,
@@ -34,6 +36,30 @@ export interface Conversation {
 }
 
 export const feedbackService = {
+  // Normalize raw Firestore data into a Feedback with required fields and safe defaults.
+  normalize(docId: string, data: Record<string, unknown>): Feedback & { id: string } {
+    const rawScore = (data as Record<string, unknown>)['score'];
+    const score = typeof rawScore === 'number' ? (rawScore as number) : Number(String(rawScore)) || 0;
+    const employeeId = typeof data['employeeId'] === 'string' ? (data['employeeId'] as string) : '';
+    const employeeName = typeof data['employeeName'] === 'string' ? (data['employeeName'] as string) : '';
+    const notes = typeof data['notes'] === 'string' ? (data['notes'] as string) : '';
+    const createdRaw = data['createdAt'];
+    const updatedRaw = data['updatedAt'];
+    const isTimestampLike = (v: unknown): v is { toDate: () => Date } =>
+      typeof v === 'object' && v !== null && typeof (v as any).toDate === 'function';
+    const createdAt = isTimestampLike(createdRaw) ? (createdRaw as any) : Timestamp.now();
+    const updatedAt = isTimestampLike(updatedRaw) ? (updatedRaw as any) : Timestamp.now();
+
+    return {
+      id: docId,
+      employeeId,
+      employeeName,
+      notes,
+      score,
+      createdAt,
+      updatedAt,
+    };
+  },
   async submitFeedback(
     feedback: Omit<Feedback, "id" | "createdAt" | "updatedAt">
   ) {
@@ -46,10 +72,12 @@ export const feedbackService = {
   },
 
   async updateFeedback(id: string, data: Partial<Feedback>) {
-    await updateDoc(doc(db, "feedback", id), {
-      ...data,
-      updatedAt: Timestamp.now(),
-    });
+    const payload: Record<string, unknown> = { ...data, updatedAt: Timestamp.now() };
+    if (data.score !== undefined) {
+      const rawScore = (data as unknown as Record<string, unknown>).score;
+      payload.score = typeof rawScore === 'number' ? rawScore : Number(String(rawScore)) || 0;
+    }
+    await updateDoc(doc(db, "feedback", id), payload);
   },
 
   async deleteFeedback(feedbackId: string) {
@@ -59,17 +87,14 @@ export const feedbackService = {
   subscribeFeedback(callback: (feedback: (Feedback & { id: string })[]) => void) {
     const q = query(collection(db, "feedback"), orderBy("updatedAt", "desc"));
     return onSnapshot(q, (snapshot) => {
-      const feedbackList = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Feedback),
-      }));
+      const feedbackList = snapshot.docs.map((d) => feedbackService.normalize(d.id, d.data()));
       callback(feedbackList);
     });
   },
 
   // 🔹 جلب الموظفين + آخر محادثة + feedback
   async getEmployeesWithFeedbackAndConversations(hrId: string) {
-    const employeeMap = new Map<string, any>();
+  const employeeMap = new Map<string, any>();
 
     // الموظفين
     const employees = await getEmployees();
@@ -129,7 +154,7 @@ export const feedbackService = {
       lastMessageTime: Date | null;
     }[]) => void
   ) {
-    const employeeMap = new Map<string, any>();
+  const employeeMap = new Map<string, any>();
 
     const emitEmployees = () => {
       const employees = Array.from(employeeMap.values()).sort((a, b) => {
@@ -148,13 +173,15 @@ export const feedbackService = {
         const currentIds = new Set<string>();
 
         snapshot.docs.forEach((docSnap) => {
-          const emp = { id: docSnap.id, ...(docSnap.data() as any) };
-          currentIds.add(emp.id);
-          employeeMap.set(emp.id, {
-            id: emp.id,
-            name: emp.name,
-            lastMessage: employeeMap.get(emp.id)?.lastMessage || "No message yet",
-            lastMessageTime: employeeMap.get(emp.id)?.lastMessageTime || null,
+          const raw = docSnap.data() as Record<string, unknown>;
+          const empId = String(raw.id ?? docSnap.id);
+          const name = String(raw.name ?? '');
+          currentIds.add(empId);
+          employeeMap.set(empId, {
+            id: empId,
+            name,
+            lastMessage: (employeeMap.get(empId) as any)?.lastMessage || "No message yet",
+            lastMessageTime: (employeeMap.get(empId) as any)?.lastMessageTime || null,
           });
         });
 

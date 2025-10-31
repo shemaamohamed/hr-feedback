@@ -88,7 +88,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       await firebaseLogOut();
-      // User state will be updated by the auth state listener
     } catch (error) {
       setLoading(false);
       throw error;

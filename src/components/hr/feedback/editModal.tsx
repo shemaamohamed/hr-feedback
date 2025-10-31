@@ -1,21 +1,12 @@
 import React from "react";
 import { Button } from '@/components/ui/button';
-
-
-type Feedback = {
-  id?: string;
-  employeeId?: string;
-  employeeName?: string;
-  notes?: string;
-  score?: number;
-  updatedAt?: Timestamp;
-};
+import type { Feedback } from '@/types/feedback';
 
 type EditModalProps = {
   selectedFeedback: Feedback;
   setIsModalOpen: (open: boolean) => void;
   handleSave: () => void;
-  setSelectedFeedback: (feedback: Feedback) => void;
+  setSelectedFeedback: React.Dispatch<React.SetStateAction<Feedback | null>>;
 };
 
 const EditModal: React.FC<EditModalProps> = ({
@@ -44,17 +35,15 @@ const EditModal: React.FC<EditModalProps> = ({
             <label className="block text-sm text-gray-600 mb-1">Score</label>
            <input
             type="number"
-            min="1"
-            max="5"
-            value={selectedFeedback.score ?? ""}
+            min={1}
+            max={5}
+            value={selectedFeedback.score}
             onChange={(e) => {
               const value = Number(e.target.value);
-              if (value >= 1 && value <= 5) {
-                setSelectedFeedback({
-                  ...selectedFeedback,
-                  score: value,
-                });
-              }
+              setSelectedFeedback({
+                ...selectedFeedback,
+                score: Number.isNaN(value) ? 0 : value,
+              });
             }}
             className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
           />
@@ -77,7 +66,7 @@ const EditModal: React.FC<EditModalProps> = ({
           </div>
         </div>
 
-        <div className="mt-6 flex grid grid-cols-2 gap-3  pt-3">
+  <div className="mt-6 grid grid-cols-2 gap-3 pt-3">
           <Button
             onClick={() => setIsModalOpen(false)}
             className="px-4 py-2  text-white bg-red-500 hover:bg-red-600"

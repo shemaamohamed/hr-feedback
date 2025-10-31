@@ -25,7 +25,7 @@ export interface ChatMessage {
   senderId: string;
   senderName: string;
   message: string;
-  timestamp?: any;
+  timestamp?: { toDate?: () => Date } | null;
   isRead: boolean;
   fileUrl?: string; 
   replyTo?: { senderName: string; message: string; messageId: string } | null;

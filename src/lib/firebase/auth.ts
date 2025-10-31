@@ -98,18 +98,30 @@ export async function signUp(email: string, password: string, name: string): Pro
 export async function signIn(email: string, password: string): Promise<FirebaseUser> {
   try {
     debugLog("Attempting to sign in user", { email });
-    
+
+    // تسجيل الدخول عادي
     const userCredential: UserCredential = await signInWithEmailAndPassword(auth, email, password);
     const { user } = userCredential;
-    
-    debugLog("User signed in successfully", { uid: user.uid, email: user.email });
+
+    // نجيب بياناته من Firestore
+    const userDoc = await getUserDocument(user.uid);
+
+    // لو المستخدم مش HR → منعه
+    if (!userDoc || userDoc.role !== "hr") {
+      await signOut(auth);
+      throw new Error("Access denied. Only HR users can sign in.");
+    }
+
+    debugLog("User signed in successfully (HR only)", { uid: user.uid, email: user.email });
     return user;
+
   } catch (error) {
     logFirebaseError("signIn", error);
     const errorInfo = getAuthErrorInfo(error);
-    throw new Error(errorInfo.userFriendlyMessage);
+    throw new Error(errorInfo.userFriendlyMessage || "Failed to sign in");
   }
 }
+
 
 export async function logOut(): Promise<void> {
   try {

@@ -2,19 +2,28 @@
 import { Input } from "@/components/ui/input";
 import React, { useMemo } from "react";
 
-import {
-  Search,
+import { Search } from "lucide-react";
+import type { Conversation } from "@/lib/firebase/chat";
 
+interface MergedItem {
+  id: string;
+  name: string;
+  lastMessage: string;
+  lastMessageTime: Date | null;
+  conversationId: string | null;
+  hasConversation: boolean;
+}
 
-} from "lucide-react";
+interface Props {
+  mergedList: MergedItem[];
+  search: string;
+  setSearch: (v: string) => void;
+  openChatWith: (id: string, name: string) => void;
+  conversations: (Conversation & { id: string })[];
+  activeConversationId?: string | null;
+}
 
-export default function EmployeeList({ mergedList, search, setSearch, openChatWith,
-conversations,
-        activeConversationId
-
-
-
- }: any) {
+export default function EmployeeList({ mergedList, search, setSearch, openChatWith, conversations, activeConversationId }: Props) {
    const filteredEmployees = useMemo(
     () =>
       mergedList.filter((emp) =>

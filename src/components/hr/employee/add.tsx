@@ -87,8 +87,9 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     showToast('Employee account created successfully');
     setFormData({ name: '', email: '', password: '', confirmPassword: '' });
-  } catch (err: any) {
-    setError(err.message || 'An error occurred');
+  } catch (err: unknown) {
+  const message = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : String(err);
+    setError(message || 'An error occurred');
   } finally {
     setIsLoading(false);
   }

@@ -10,6 +10,33 @@ import {
   X,
 } from "lucide-react";
 
+interface ChatMessage {
+  id: string;
+  senderName: string;
+  message: string;
+  senderId?: string;
+  replyTo?: { senderName: string; message: string } | string | null;
+  timestamp?: { toDate?: () => Date } | null;
+  fileUrl?: string | null;
+}
+
+interface ChatWindowProps {
+  messages: ChatMessage[];
+  user: { uid?: string | null } | null;
+  messageText: string;
+  setMessageText: (value: string) => void;
+  sendMessage: () => void;
+  replyTo: { senderName: string; message: string } | string | null;
+  setReplyTo: (value: { senderName: string; message: string } | string | null) => void;
+  file: File | null;
+  setFile: (file: File | null) => void;
+  showChat: boolean;
+  chatPartnerName?: string | null;
+  setShowChat: (v: boolean) => void;
+  activeConversationId?: string | null;
+  isUploading?: boolean;
+}
+
 export default function ChatWindow({
   messages,
   user,
@@ -24,9 +51,8 @@ export default function ChatWindow({
   chatPartnerName,
   setShowChat,
   activeConversationId,
-  isUploading
-
-}: any) {
+  isUploading,
+}: ChatWindowProps) {
     const chatEndRef = useRef<HTMLDivElement>(null);
 useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -72,7 +98,7 @@ useEffect(() => {
                   userId={user?.uid || ""}
                   senderName={m.senderName}
                   message={m.message}
-                  fileUrl={m?.fileUrl}
+                  fileUrl={m.fileUrl ?? undefined}
                   time={
                     m.timestamp?.toDate
                       ? m.timestamp.toDate().toLocaleString()
@@ -97,17 +123,25 @@ useEffect(() => {
         {activeConversationId && (
           <div className="p-4 border-t bg-gray-50">
             {replyTo && (
-              <div className="bg-blue-50 p-2 mb-2 rounded-lg text-sm flex justify-between items-center border-l-4 border-blue-500">
-                <div>
-                  <strong>{replyTo.senderName}</strong>: {replyTo.message}
-                </div>
-                <button
-                  className="text-red-500 text-xs ml-2"
-                  onClick={() => setReplyTo(null)}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              (() => {
+                const replyPreview = typeof replyTo === 'string'
+                  ? messages.find((mm) => mm.id === replyTo) || null
+                  : replyTo;
+
+                return (
+                  <div className="bg-blue-50 p-2 mb-2 rounded-lg text-sm flex justify-between items-center border-l-4 border-blue-500">
+                    <div>
+                      <strong>{replyPreview?.senderName}</strong>: {replyPreview?.message}
+                    </div>
+                    <button
+                      className="text-red-500 text-xs ml-2"
+                      onClick={() => setReplyTo(null)}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })()
             )}
 
             <div className="flex items-center gap-3">
