@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { readFile } from 'fs/promises';
 
 // Server-side admin user creation endpoint.
 // Requires FIREBASE_SERVICE_ACCOUNT env var to be set to the service account JSON string.
@@ -11,12 +12,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing authorization token' }, { status: 401 });
     }
 
-    if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
       return NextResponse.json({ error: 'Server not configured to create auth users. Set FIREBASE_SERVICE_ACCOUNT.' }, { status: 501 });
     }
 
     const admin = await import('firebase-admin');
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    const serviceAccountRaw = await readFile(process.env.FIREBASE_SERVICE_ACCOUNT_PATH!, 'utf-8');
+    const serviceAccount = JSON.parse(serviceAccountRaw);
     if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
