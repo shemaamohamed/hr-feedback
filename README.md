@@ -5,6 +5,14 @@
 ### Project name
 HR Feedback System
 
+### Some Screens
+<img width="1893" height="842" alt="Screenshot 2025-11-01 215333" src="https://github.com/user-attachments/assets/70451b76-3cde-46f7-a36b-a5292681ae48" />
+<img width="1899" height="855" alt="Screenshot 2025-11-01 215254" src="https://github.com/user-attachments/assets/3be09fcc-1c96-4acc-976c-986dbcfd0cd0" />
+<img width="1908" height="856" alt="Screenshot 2025-11-01 215313" src="https://github.com/user-attachments/assets/f33a520f-0c9e-4873-9a8a-487416944b56" />
+
+
+
+
 ### Short description
 A lightweight HR feedback and employee-management web application built with Next.js (App Router) and TypeScript. The system lets HR teams add/manage employees, create and manage feedback and ratings, visualize KPIs (pie charts and trends), chat with employees (with file/link previews), and export reports as PDF or Excel. Files and document previews (including PDFs) are served securely via Backblaze B2 presigned URLs.
 Target users: HR administrators, managers, and employees in small-to-mid sized organizations.
