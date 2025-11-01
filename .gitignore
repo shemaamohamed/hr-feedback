@@ -6,8 +6,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-
+.env.local
+.env.*.local
+.env
 
 .next
 node_modules
@@ -24,3 +25,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/serviceAccountKey.json
+
