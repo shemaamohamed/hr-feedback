@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -40,11 +42,14 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3">
           <div className="flex justify-center">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-2xl font-bold text-primary-foreground">HR</span>
-            </div>
+              <Image
+            src="/logo.png"
+            alt="Logo"
+            width={160}
+            height={40}
+            className="py-2"
+          />
           </div>
-          <CardTitle className="text-center text-2xl">Welcome back</CardTitle>
           <CardDescription className="text-center">
             Sign in to your HR Feedback System account
           </CardDescription>
